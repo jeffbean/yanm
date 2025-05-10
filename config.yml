@@ -13,10 +13,3 @@ prometheus:
 logging:
   level: info
   output_file: /var/log/yanm.log
-
-alerts:
-  email: 
-    enabled: false
-  slack:
-    enabled: false
-    webhook_url: ${SLACK_WEBHOOK_URL}

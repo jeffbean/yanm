@@ -2,31 +2,24 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"time"
 
+	"yanm/internal/config"
 	"yanm/internal/network"
 	"yanm/internal/storage"
 )
 
 func main() {
-	fmt.Println("Home Network Internet Monitor")
+	log.Println("Home Network Internet Monitor")
 	log.Println("Initializing monitoring system...")
 
-	// Prometheus Push Gateway configuration
-	pushGatewayURL := os.Getenv("PROMETHEUS_PUSH_GATEWAY_URL")
-	jobName := os.Getenv("PROMETHEUS_JOB_NAME")
-
-	if pushGatewayURL == "" {
-		log.Fatal("Missing Prometheus Push Gateway configuration. Set PROMETHEUS_PUSH_GATEWAY_URL")
-	}
-
-	// Use default job name if not set
-	if jobName == "" {
-		jobName = "home_network_monitor"
+	// Load configuration
+	config, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	// Start monitoring loop
@@ -40,27 +33,49 @@ func main() {
 		cancel()
 	}()
 
-	// Initialize Prometheus storage
-	storage, err := storage.NewPrometheusStorage(pushGatewayURL, jobName)
-	if err != nil {
-		log.Fatalf("Failed to create Prometheus storage: %v", err)
-	}
-	defer storage.Close(ctx)
+	var (
+		store storage.MetricsStorage
+	)
 
-	monitorNetwork(ctx, storage)
+	switch config.Metrics.Engine {
+	case "prometheus":
+		store, err = storage.NewPrometheusStorage(
+			config.Metrics.Prometheus.PushGatewayURL,
+			config.Metrics.Prometheus.JobName,
+		)
+		if err != nil {
+			log.Fatalf("Failed to create Prometheus storage: %v", err)
+		}
+		defer store.Close(ctx)
+		log.Println("Metrics storage enabled")
+	case "no-op":
+		store = storage.NewNoOpStorage()
+		log.Println("Metrics storage disabled")
+	default:
+		log.Fatalf("Invalid metrics engine: %s", config.Metrics.Engine)
+	}
+
+	// Use interval from configuration, default to 5 minutes if not set
+	interval := time.Duration(config.Network.Speedtest.IntervalMinutes) * time.Minute
+
+	monitorNetwork(ctx, interval, store)
 }
 
-func monitorNetwork(ctx context.Context, storage storage.MetricsStorage) {
-	ticker := time.NewTicker(5 * time.Minute)
+func monitorNetwork(ctx context.Context, interval time.Duration, storage storage.MetricsStorage) {
+	performNetworkCheck(ctx, storage)
+
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+
+	log.Printf("Starting network monitoring with %s interval", interval)
 
 	for {
 		select {
+		case <-ticker.C:
+			performNetworkCheck(ctx, storage)
 		case <-ctx.Done():
 			log.Println("Stopping monitoring system...")
 			return
-		case <-ticker.C:
-			performNetworkCheck(ctx, storage)
 		}
 	}
 }

@@ -7,7 +7,6 @@ A comprehensive Golang-based system for monitoring home network internet health 
 - 🚀 Periodic Internet Speed Testing
 - 📊 Network Performance Tracking
 - 📈 Historical Data Storage
-- 🔔 Configurable Alerts
 - 🌐 Grafana Dashboard Integration
 
 ## Hardware Requirements
@@ -20,7 +19,6 @@ A comprehensive Golang-based system for monitoring home network internet health 
 - Prometheus Client SDK
 - Prometheus Push Gateway
 - Grafana Cloud
-- Optional: Slack/Email for Alerts
 
 ## Project Structure
 ```

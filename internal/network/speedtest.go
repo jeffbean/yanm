@@ -35,11 +35,11 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 
 	targets, err := serverList.Available().FindServer([]int{})
 	if err != nil {
-		return nil, fmt.Errorf("no suitable speedtest servers found")
+		return nil, fmt.Errorf("no suitable speedtest servers found: %v", err)
 	}
 
 	if len(targets) < 1 {
-		return nil, fmt.Errorf("no suitable speedtest servers found")
+		return nil, fmt.Errorf("no target ")
 	}
 
 	target := targets[0]
@@ -66,8 +66,8 @@ func (s *SpeedTestClient) performTests(ctx context.Context, target *speedtest.Se
 		mu   sync.Mutex
 		errs error // protected with sync.Mutex
 	)
-	wg.Add(2)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -79,6 +79,7 @@ func (s *SpeedTestClient) performTests(ctx context.Context, target *speedtest.Se
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
