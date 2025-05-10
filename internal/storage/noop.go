@@ -2,20 +2,24 @@ package storage
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 )
 
 // NoOpStorage is a no-operation implementation of MetricsStorage
 // It does nothing when storing metrics, effectively turning off metrics storage
-type NoOpStorage struct{}
+type NoOpStorage struct {
+	logger *slog.Logger
+}
 
 // Verify that NoOpStorage implements MetricsStorage interface
 var _ MetricsStorage = (*NoOpStorage)(nil)
 
 // NewNoOpStorage creates a new NoOpStorage instance
-func NewNoOpStorage() *NoOpStorage {
-	return &NoOpStorage{}
+func NewNoOpStorage(logger *slog.Logger) *NoOpStorage {
+	return &NoOpStorage{
+		logger: logger,
+	}
 }
 
 // StoreNetworkPerformance does nothing and always returns nil
@@ -26,9 +30,11 @@ func (n *NoOpStorage) StoreNetworkPerformance(
 	ping int64,
 	serverName string,
 ) error {
-	log.Printf("NoOpStorage: logging metrics: Download: %f Mbps, Upload: %f Mbps, Ping: %d ms, Server: %s",
-		downloadSpeedMbps, uploadSpeedMbps, ping, serverName,
-	)
+	n.logger.InfoContext(ctx, "NoOpStorage: logging metrics",
+		"downloadSpeedMbps", downloadSpeedMbps,
+		"uploadSpeedMbps", uploadSpeedMbps,
+		"ping", ping,
+		"serverName", serverName)
 	return nil
 }
 
@@ -39,7 +45,9 @@ func (n *NoOpStorage) StorePingResult(
 	pingMs int64,
 	serverName string,
 ) error {
-	log.Printf("NoOpStorage: logging ping result: Ping: %d ms, Server: %s", pingMs, serverName)
+	n.logger.InfoContext(ctx, "NoOpStorage: logging ping result",
+		"pingMs", pingMs,
+		"serverName", serverName)
 	return nil
 }
 

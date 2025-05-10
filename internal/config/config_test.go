@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"yanm/internal/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,14 +28,7 @@ func TestLoad(t *testing.T) {
 		errorMessage   string
 	}{
 		{
-			name: "Default No-Op Configuration",
-			configContent: `
-metrics:
-  engine: no-op
-network:
-  speedtest:
-    interval_minutes: 10
-`,
+			name: "Default Configuration",
 			expectedConfig: Configuration{
 				Metrics: struct {
 					Engine     string `yaml:"engine"`
@@ -43,8 +37,25 @@ network:
 						JobName        string `yaml:"job_name"`
 						InstanceName   string `yaml:"instance_name"`
 					} `yaml:"prometheus"`
+					InfluxDB struct {
+						URL    string `yaml:"url"`
+						Token  string `yaml:"token"`
+						Org    string `yaml:"org"`
+						Bucket string `yaml:"bucket"`
+					} `yaml:"influxdb"`
 				}{
 					Engine: "no-op",
+					Prometheus: struct {
+						PushGatewayURL string `yaml:"push_gateway_url"`
+						JobName        string `yaml:"job_name"`
+						InstanceName   string `yaml:"instance_name"`
+					}{},
+					InfluxDB: struct {
+						URL    string `yaml:"url"`
+						Token  string `yaml:"token"`
+						Org    string `yaml:"org"`
+						Bucket string `yaml:"bucket"`
+					}{},
 				},
 				Network: struct {
 					PingTest struct {
@@ -60,10 +71,10 @@ network:
 					} `yaml:"speedtest"`
 				}{
 					PingTest: struct {
-						IntervalSeconds int     `yaml:"interval_seconds"`
+						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					}{
-						IntervalSeconds: 60, // Default value
+						IntervalSeconds:  15,  // Default value
 						ThresholdSeconds: 5.0, // Default value
 					},
 					SpeedTest: struct {
@@ -73,14 +84,12 @@ network:
 							MaxServersToTest int    `yaml:"max_servers_to_test"`
 						} `yaml:"servers"`
 					}{
-						IntervalMinutes: 10,
+						IntervalMinutes: 1,
 					},
 				},
-				Logging: struct {
-					Level      string `yaml:"level"`
-					OutputFile string `yaml:"output_file"`
-				}{
+				Logging: logger.Config{
 					Level:      "info",
+					Format:     "json",
 					OutputFile: "/var/log/yanm.log",
 				},
 			},
@@ -103,6 +112,12 @@ metrics:
 						JobName        string `yaml:"job_name"`
 						InstanceName   string `yaml:"instance_name"`
 					} `yaml:"prometheus"`
+					InfluxDB struct {
+						URL    string `yaml:"url"`
+						Token  string `yaml:"token"`
+						Org    string `yaml:"org"`
+						Bucket string `yaml:"bucket"`
+					} `yaml:"influxdb"`
 				}{
 					Engine: "prometheus",
 					Prometheus: struct {
@@ -117,7 +132,7 @@ metrics:
 				},
 				Network: struct {
 					PingTest struct {
-						IntervalSeconds int     `yaml:"interval_seconds"`
+						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					} `yaml:"ping_test"`
 					SpeedTest struct {
@@ -129,10 +144,10 @@ metrics:
 					} `yaml:"speedtest"`
 				}{
 					PingTest: struct {
-						IntervalSeconds int     `yaml:"interval_seconds"`
+						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					}{
-						IntervalSeconds: 60, // Default value
+						IntervalSeconds:  15,  // Default value
 						ThresholdSeconds: 5.0, // Default value
 					},
 					SpeedTest: struct {
@@ -142,14 +157,12 @@ metrics:
 							MaxServersToTest int    `yaml:"max_servers_to_test"`
 						} `yaml:"servers"`
 					}{
-						IntervalMinutes: 5,
+						IntervalMinutes: 1,
 					},
 				},
-				Logging: struct {
-					Level      string `yaml:"level"`
-					OutputFile string `yaml:"output_file"`
-				}{
+				Logging: logger.Config{
 					Level:      "info",
+					Format:     "json",
 					OutputFile: "/var/log/yanm.log",
 				},
 			},
@@ -196,29 +209,16 @@ metrics:
 			require.NoError(t, err)
 			require.NotNil(t, cfg)
 
-			// Compare configuration
 			assert.Equal(t, tc.expectedConfig.Metrics.Engine, cfg.Metrics.Engine, "Metrics Engine")
-
-			// Prometheus configuration
-			if tc.expectedConfig.Metrics.Engine == "prometheus" {
-				assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.PushGatewayURL,
-					cfg.Metrics.Prometheus.PushGatewayURL, "Prometheus Push Gateway URL")
-				assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.JobName,
-					cfg.Metrics.Prometheus.JobName, "Prometheus Job Name")
-				assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.InstanceName,
-					cfg.Metrics.Prometheus.InstanceName, "Prometheus Instance Name")
-			}
-
-			// Network configuration
-			assert.Equal(t, tc.expectedConfig.Network.SpeedTest.IntervalMinutes,
-				cfg.Network.SpeedTest.IntervalMinutes, "Network Speedtest Interval")
-
-			// Logging configuration
-			assert.Equal(t, tc.expectedConfig.Logging.Level,
-				cfg.Logging.Level, "Logging Level")
-			assert.Equal(t, tc.expectedConfig.Logging.OutputFile,
-				cfg.Logging.OutputFile, "Logging Output File")
-
+			assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.PushGatewayURL, cfg.Metrics.Prometheus.PushGatewayURL, "Prometheus Push Gateway URL")
+			assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.JobName, cfg.Metrics.Prometheus.JobName, "Prometheus Job Name")
+			assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.InstanceName, cfg.Metrics.Prometheus.InstanceName, "Prometheus Instance Name")
+			assert.Equal(t, tc.expectedConfig.Network.PingTest.IntervalSeconds, cfg.Network.PingTest.IntervalSeconds, "Ping Test Interval")
+			assert.Equal(t, tc.expectedConfig.Network.PingTest.ThresholdSeconds, cfg.Network.PingTest.ThresholdSeconds, "Ping Test Threshold")
+			assert.Equal(t, tc.expectedConfig.Network.SpeedTest.IntervalMinutes, cfg.Network.SpeedTest.IntervalMinutes, "Speed Test Interval")
+			assert.Equal(t, tc.expectedConfig.Logging.Level, cfg.Logging.Level, "Logging Level")
+			assert.Equal(t, tc.expectedConfig.Logging.Format, cfg.Logging.Format, "Logging Format")
+			assert.Equal(t, tc.expectedConfig.Logging.OutputFile, cfg.Logging.OutputFile, "Logging Output File")
 		})
 	}
 }

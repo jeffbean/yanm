@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -16,13 +16,15 @@ type InfluxDBStorage struct {
 	writeAPI api.WriteAPIBlocking
 	org      string
 	bucket   string
+
+	logger *slog.Logger
 }
 
 // Verify InfluxDBStorage implements MetricsStorage interface
 var _ MetricsStorage = (*InfluxDBStorage)(nil)
 
 // NewInfluxDBStorage creates a new InfluxDB storage client
-func NewInfluxDBStorage(url, token, org, bucket string) (*InfluxDBStorage, error) {
+func NewInfluxDBStorage(logger *slog.Logger, url, token, org, bucket string) (*InfluxDBStorage, error) {
 	if url == "" || token == "" || org == "" || bucket == "" {
 		return nil, fmt.Errorf("InfluxDB configuration cannot have empty values")
 	}
@@ -38,6 +40,7 @@ func NewInfluxDBStorage(url, token, org, bucket string) (*InfluxDBStorage, error
 		writeAPI: writeAPI,
 		org:      org,
 		bucket:   bucket,
+		logger:   logger,
 	}, nil
 }
 
@@ -63,11 +66,11 @@ func (i *InfluxDBStorage) StoreNetworkPerformance(
 
 	// Write point
 	if err := i.writeAPI.WritePoint(ctx, point); err != nil {
-		log.Printf("Failed to write metrics to InfluxDB: %v", err)
+		i.logger.ErrorContext(ctx, "Failed to write metrics to InfluxDB", "error", err)
 		return fmt.Errorf("failed to write metrics: %v", err)
 	}
 
-	log.Printf("Successfully sent network performance metrics to InfluxDB (Server: %s)", serverName)
+	i.logger.InfoContext(ctx, "Successfully sent network performance metrics to InfluxDB", "server", serverName)
 	return nil
 }
 
@@ -90,11 +93,11 @@ func (i *InfluxDBStorage) StorePingResult(
 
 	// Write point
 	if err := i.writeAPI.WritePoint(ctx, point); err != nil {
-		log.Printf("Failed to write metrics to InfluxDB: %v", err)
+		i.logger.ErrorContext(ctx, "Failed to write metrics to InfluxDB", "error", err)
 		return fmt.Errorf("failed to write metrics: %v", err)
 	}
 
-	log.Printf("Successfully sent ping metrics to InfluxDB (Server: %s)", serverName)
+	i.logger.InfoContext(ctx, "Successfully sent ping metrics to InfluxDB", "server", serverName)
 	return nil
 }
 

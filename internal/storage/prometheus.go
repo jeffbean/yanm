@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,13 +17,15 @@ type PrometheusStorage struct {
 	downloadSpeed *prometheus.GaugeVec
 	uploadSpeed   *prometheus.GaugeVec
 	pingLatency   *prometheus.GaugeVec
+
+	logger *slog.Logger
 }
 
 // Verify PrometheusStorage implements MetricsStorage interface
 var _ MetricsStorage = (*PrometheusStorage)(nil)
 
 // NewPrometheusStorage creates a new Prometheus storage client
-func NewPrometheusStorage(pushGatewayURL, jobName string) (*PrometheusStorage, error) {
+func NewPrometheusStorage(logger *slog.Logger, pushGatewayURL, jobName string) (*PrometheusStorage, error) {
 	if pushGatewayURL == "" {
 		return nil, fmt.Errorf("push gateway URL cannot be empty")
 	}
@@ -55,6 +57,7 @@ func NewPrometheusStorage(pushGatewayURL, jobName string) (*PrometheusStorage, e
 		downloadSpeed: downloadSpeed,
 		uploadSpeed:   uploadSpeed,
 		pingLatency:   pingLatency,
+		logger:        logger,
 	}, nil
 }
 
@@ -73,11 +76,11 @@ func (p *PrometheusStorage) StoreNetworkPerformance(
 
 	// Push metrics to Prometheus Push Gateway
 	if err := p.pusher.AddContext(ctx); err != nil {
-		log.Printf("Failed to push metrics: %v", err)
+		p.logger.ErrorContext(ctx, "Failed to push metrics", "error", err)
 		return fmt.Errorf("failed to push metrics: %v", err)
 	}
 
-	log.Printf("Successfully sent network performance metrics to Prometheus (Server: %s)", serverName)
+	p.logger.InfoContext(ctx, "Successfully sent network performance metrics to Prometheus", "server", serverName)
 	return nil
 }
 
@@ -92,11 +95,11 @@ func (p *PrometheusStorage) StorePingResult(
 
 	// Push metrics to Prometheus Push Gateway
 	if err := p.pusher.AddContext(ctx); err != nil {
-		log.Printf("Failed to push metrics: %v", err)
+		p.logger.ErrorContext(ctx, "Failed to push metrics", "error", err)
 		return fmt.Errorf("failed to push metrics: %v", err)
 	}
 
-	log.Printf("Successfully sent ping result to Prometheus (Server: %s)", serverName)
+	p.logger.InfoContext(ctx, "Successfully sent ping result to Prometheus", "server", serverName)
 	return nil
 }
 
@@ -104,6 +107,6 @@ func (p *PrometheusStorage) StorePingResult(
 func (p *PrometheusStorage) Close(ctx context.Context) {
 	// Optional: Final push before closing
 	if err := p.pusher.AddContext(ctx); err != nil {
-		log.Printf("Error during final metrics push: %v", err)
+		p.logger.ErrorContext(ctx, "Error during final metrics push", "error", err)
 	}
 }

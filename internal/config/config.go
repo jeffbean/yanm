@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"yanm/internal/logger"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,19 +26,22 @@ type Configuration struct {
 	} `yaml:"network"`
 
 	Metrics struct {
-		Engine string `yaml:"engine"`
-
+		Engine     string `yaml:"engine"`
 		Prometheus struct {
 			PushGatewayURL string `yaml:"push_gateway_url"`
 			JobName        string `yaml:"job_name"`
 			InstanceName   string `yaml:"instance_name"`
 		} `yaml:"prometheus"`
+		InfluxDB struct {
+			URL    string `yaml:"url"`
+			Token  string `yaml:"token"`
+			Org    string `yaml:"org"`
+			Bucket string `yaml:"bucket"`
+		} `yaml:"influxdb"`
 	} `yaml:"metrics"`
 
-	Logging struct {
-		Level      string `yaml:"level"`
-		OutputFile string `yaml:"output_file"`
-	} `yaml:"logging"`
+	// Logging configuration
+	Logging logger.Config `yaml:"logging"`
 }
 
 // Load reads the configuration from the config file
@@ -79,6 +83,10 @@ func (c *Configuration) validate() error {
 	// Set default logging configuration
 	if c.Logging.Level == "" {
 		c.Logging.Level = "info"
+	}
+
+	if c.Logging.Format == "" {
+		c.Logging.Format = "json"
 	}
 
 	if c.Logging.OutputFile == "" {

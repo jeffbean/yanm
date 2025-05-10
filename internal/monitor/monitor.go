@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"log"
+	"log/slog"
 	"sync"
 	"time"
 	"yanm/internal/config"
@@ -16,6 +17,7 @@ import (
 type Network struct {
 	storage storage.MetricsStorage
 	client  network.SpeedTester
+	logger  *slog.Logger
 
 	pingInterval         time.Duration
 	networkInterval      time.Duration
@@ -25,6 +27,7 @@ type Network struct {
 }
 
 func NewNetwork(
+	logger *slog.Logger,
 	storage storage.MetricsStorage,
 	client network.SpeedTester,
 	config *config.Configuration,
@@ -32,6 +35,7 @@ func NewNetwork(
 	return &Network{
 		storage: storage,
 		client:  client,
+		logger:  logger,
 
 		pingInterval:         time.Duration(config.Network.PingTest.IntervalSeconds) * time.Second,
 		networkInterval:      time.Duration(config.Network.SpeedTest.IntervalMinutes) * time.Minute,
@@ -59,24 +63,24 @@ func (m *Network) StartMonitor(ctx context.Context) {
 
 		for {
 			if err := pingLimiter.Wait(ctx); err != nil {
-				log.Printf("Ping limiter error: %v", err)
+				m.logger.ErrorContext(ctx, "Ping limiter error", "error", err)
 				return
 			}
 
-			log.Println("Performing ping check...")
+			m.logger.InfoContext(ctx, "Performing ping check...")
 			pingResult, err := m.performPingCheck(ctx)
 			if err != nil {
 				// TODO: trigger network check for some ping error conditions.
-				log.Printf("Ping failed: %v", err)
+				m.logger.ErrorContext(ctx, "Ping failed", "error", err)
 				continue
 			}
 
 			if pingResult != nil && pingResult.Latency > m.pingTriggerThreshold {
-				log.Printf("Ping latency is high: %v. Triggering network check.", pingResult.Latency)
+				m.logger.InfoContext(ctx, "Ping latency is high", "latency", pingResult.Latency)
 				select {
 				case triggerNetworkCheck <- struct{}{}: // Non-blocking send
 				default:
-					log.Println("Network check trigger channel is full. Skipping immediate check.")
+					m.logger.InfoContext(ctx, "Network check trigger channel is full. Skipping immediate check.")
 				}
 			}
 		}
@@ -88,38 +92,38 @@ func (m *Network) StartMonitor(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("Network check goroutine stopping...")
+				m.logger.InfoContext(ctx, "Network check goroutine stopping...")
 				return
 			case <-triggerNetworkCheck:
-				log.Println("TRIGGER: Performing network check due to high ping latency...")
+				m.logger.InfoContext(ctx, "TRIGGER: Performing network check due to high ping latency...")
 				if networkLimiter.Allow() { // Respect the limiter even for triggered checks
 					m.performNetworkCheck(ctx)
 				} else {
-					log.Println("Network check rate limit active, triggered check skipped. tokens: ", networkLimiter.Tokens())
+					m.logger.InfoContext(ctx, "Network check rate limit active, triggered check skipped.", "tokens", networkLimiter.Tokens())
 				}
 			case <-time.Tick(m.networkInterval):
-				log.Println("SCHEDULED: Performing network check...")
+				m.logger.InfoContext(ctx, "SCHEDULED: Performing network check...")
 				if networkLimiter.Allow() {
 					m.performNetworkCheck(ctx)
 				} else {
-					log.Println("Network check rate limit active, scheduled check skipped. tokens: ", networkLimiter.Tokens())
+					m.logger.InfoContext(ctx, "Network check rate limit active, scheduled check skipped.", "tokens", networkLimiter.Tokens())
 				}
 			}
 		}
 	}()
 
-	log.Println("Monitoring goroutines started.")
+	m.logger.InfoContext(ctx, "Monitoring goroutines started.")
 	<-ctx.Done() // Wait for context cancellation (e.g., SIGINT)
-	log.Println("Shutting down monitor...")
+	m.logger.InfoContext(ctx, "Shutting down monitor...")
 	wg.Wait() // Wait for all goroutines to finish
-	log.Println("Monitor shut down gracefully.")
+	m.logger.InfoContext(ctx, "Monitor shut down gracefully.")
 }
 
 func (m *Network) performPingCheck(ctx context.Context) (*network.PingResult, error) {
 	pingResult, err := m.client.PerformPingTest(ctx)
 
 	if err != nil {
-		log.Printf("Ping failed: %v", err)
+		m.logger.ErrorContext(ctx, "Ping failed", "error", err)
 		return nil, err
 	}
 
@@ -131,7 +135,7 @@ func (m *Network) performPingCheck(ctx context.Context) (*network.PingResult, er
 		pingResult.TargetName,
 	)
 	if err != nil {
-		log.Printf("Failed to store ping result: %v", err)
+		m.logger.ErrorContext(ctx, "Failed to store ping result", "error", err)
 	}
 
 	return pingResult, nil
@@ -140,7 +144,7 @@ func (m *Network) performPingCheck(ctx context.Context) (*network.PingResult, er
 func (m *Network) performNetworkCheck(ctx context.Context) {
 	speedResult, err := m.client.PerformSpeedTest(ctx)
 	if err != nil {
-		log.Printf("Speed test failed: %v", err)
+		m.logger.ErrorContext(ctx, "Speed test failed", "error", err)
 		return
 	}
 
@@ -154,6 +158,6 @@ func (m *Network) performNetworkCheck(ctx context.Context) {
 		speedResult.TargetName,
 	)
 	if err != nil {
-		log.Printf("Failed to store speed result: %v", err)
+		m.logger.ErrorContext(ctx, "Failed to store speed result", "error", err)
 	}
 }

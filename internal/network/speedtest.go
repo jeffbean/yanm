@@ -3,7 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 type SpeedTestClient struct {
 	st *speedtest.Speedtest
 
+	logger *slog.Logger
 	// testing fields
 	clock clock.Clock
 }
@@ -24,10 +25,11 @@ type SpeedTestClient struct {
 var _ SpeedTester = (*SpeedTestClient)(nil)
 
 // NewSpeedTestClient creates a new speed test client
-func NewSpeedTestClient() *SpeedTestClient {
+func NewSpeedTestClient(logger *slog.Logger) *SpeedTestClient {
 	return &SpeedTestClient{
-		st:    speedtest.New(),
-		clock: clock.New(),
+		st:     speedtest.New(),
+		clock:  clock.New(),
+		logger: logger,
 	}
 }
 
@@ -48,7 +50,7 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 	}
 
 	target := targets[0]
-	log.Printf("Selected server: %s", target.Name)
+	s.logger.InfoContext(ctx, "Selected server", "serverName", target.Name)
 
 	if err := s.performTests(ctx, target); err != nil {
 		return nil, fmt.Errorf("failed to perform tests: %v", err)
@@ -83,7 +85,7 @@ func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, err
 	}
 
 	target := targets[0]
-	log.Printf("Selected server: %s", target.Name)
+	s.logger.InfoContext(ctx, "Selected server", "serverName", target.Name)
 
 	_callback := func(latency time.Duration) {
 		result.Latency = latency
@@ -109,7 +111,7 @@ func (s *SpeedTestClient) performTests(ctx context.Context, target *speedtest.Se
 	go func() {
 		defer wg.Done()
 
-		log.Printf("Testing download speed on server: %s", target.Name)
+		s.logger.InfoContext(ctx, "Testing download speed on server", "serverName", target.Name)
 		if err := target.DownloadTestContext(ctx); err != nil {
 			mu.Lock()
 			defer mu.Unlock()
@@ -121,7 +123,7 @@ func (s *SpeedTestClient) performTests(ctx context.Context, target *speedtest.Se
 	go func() {
 		defer wg.Done()
 
-		log.Printf("Testing upload speed on server: %s", target.Name)
+		s.logger.InfoContext(ctx, "Testing upload speed on server", "serverName", target.Name)
 		if err := target.UploadTestContext(ctx); err != nil {
 			mu.Lock()
 			defer mu.Unlock()
