@@ -14,9 +14,9 @@ import (
 // PrometheusStorage manages sending metrics to Prometheus
 type PrometheusStorage struct {
 	pusher        *push.Pusher
-	downloadSpeed prometheus.Gauge
-	uploadSpeed   prometheus.Gauge
-	pingLatency   prometheus.Gauge
+	downloadSpeed *prometheus.GaugeVec
+	uploadSpeed   *prometheus.GaugeVec
+	pingLatency   *prometheus.GaugeVec
 }
 
 // Verify PrometheusStorage implements MetricsStorage interface
@@ -29,20 +29,20 @@ func NewPrometheusStorage(pushGatewayURL, jobName string) (*PrometheusStorage, e
 	}
 
 	// Create metrics using promauto
-	downloadSpeed := promauto.NewGauge(prometheus.GaugeOpts{
+	downloadSpeed := promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "network_download_speed_mbps",
 		Help: "Network download speed in Mbps",
-	})
+	}, []string{"server"})
 
-	uploadSpeed := promauto.NewGauge(prometheus.GaugeOpts{
+	uploadSpeed := promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "network_upload_speed_mbps",
 		Help: "Network upload speed in Mbps",
-	})
+	}, []string{"server"})
 
-	pingLatency := promauto.NewGauge(prometheus.GaugeOpts{
+	pingLatency := promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "network_ping_latency_ms",
 		Help: "Network ping latency in milliseconds",
-	})
+	}, []string{"server"})
 
 	// Create Prometheus pusher
 	pusher := push.New(pushGatewayURL, jobName).
@@ -62,13 +62,14 @@ func NewPrometheusStorage(pushGatewayURL, jobName string) (*PrometheusStorage, e
 func (p *PrometheusStorage) StoreNetworkPerformance(
 	ctx context.Context,
 	timestamp time.Time,
-	downloadSpeedMbps, uploadSpeedMbps, pingMs float64,
+	downloadSpeedMbps, uploadSpeedMbps float64,
+	pingMs int64,
 	serverName string,
 ) error {
 	// Set metric values
-	p.downloadSpeed.Set(downloadSpeedMbps)
-	p.uploadSpeed.Set(uploadSpeedMbps)
-	p.pingLatency.Set(pingMs)
+	p.downloadSpeed.WithLabelValues(serverName).Set(downloadSpeedMbps)
+	p.uploadSpeed.WithLabelValues(serverName).Set(uploadSpeedMbps)
+	p.pingLatency.WithLabelValues(serverName).Set(float64(pingMs))
 
 	// Push metrics to Prometheus Push Gateway
 	if err := p.pusher.AddContext(ctx); err != nil {
@@ -77,6 +78,25 @@ func (p *PrometheusStorage) StoreNetworkPerformance(
 	}
 
 	log.Printf("Successfully sent network performance metrics to Prometheus (Server: %s)", serverName)
+	return nil
+}
+
+func (p *PrometheusStorage) StorePingResult(
+	ctx context.Context,
+	timestamp time.Time,
+	pingMs int64,
+	serverName string,
+) error {
+	// Set metric values with server label
+	p.pingLatency.WithLabelValues(serverName).Set(float64(pingMs))
+
+	// Push metrics to Prometheus Push Gateway
+	if err := p.pusher.AddContext(ctx); err != nil {
+		log.Printf("Failed to push metrics: %v", err)
+		return fmt.Errorf("failed to push metrics: %v", err)
+	}
+
+	log.Printf("Successfully sent ping result to Prometheus (Server: %s)", serverName)
 	return nil
 }
 

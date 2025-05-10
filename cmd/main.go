@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
 	"yanm/internal/config"
+	"yanm/internal/monitor"
 	"yanm/internal/network"
 	"yanm/internal/storage"
 )
@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-
+	log.Printf("Configuration: %+v", config)
 	// Start monitoring loop
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -55,52 +55,6 @@ func main() {
 		log.Fatalf("Invalid metrics engine: %s", config.Metrics.Engine)
 	}
 
-	// Use interval from configuration, default to 5 minutes if not set
-	interval := time.Duration(config.Network.Speedtest.IntervalMinutes) * time.Minute
-
-	monitorNetwork(ctx, interval, store)
-}
-
-func monitorNetwork(ctx context.Context, interval time.Duration, storage storage.MetricsStorage) {
-	performNetworkCheck(ctx, storage)
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	log.Printf("Starting network monitoring with %s interval", interval)
-
-	for {
-		select {
-		case <-ticker.C:
-			performNetworkCheck(ctx, storage)
-		case <-ctx.Done():
-			log.Println("Stopping monitoring system...")
-			return
-		}
-	}
-}
-
-func performNetworkCheck(ctx context.Context, storage storage.MetricsStorage) {
-	log.Println("Performing network health check...")
-
-	// Perform speed test
-	speedTester := network.NewSpeedTestClient()
-	performance, err := speedTester.PerformSpeedTest(ctx)
-	if err != nil {
-		log.Printf("Speed test failed: %v", err)
-		return
-	}
-
-	// Store performance data
-	err = storage.StoreNetworkPerformance(
-		ctx,
-		performance.Timestamp,
-		performance.DownloadSpeedMbps,
-		performance.UploadSpeedMbps,
-		performance.PingMs,
-		performance.TargetName,
-	)
-	if err != nil {
-		log.Printf("Failed to store performance data: %v", err)
-	}
+	monitor := monitor.NewNetwork(store, network.NewSpeedTestClient(), config)
+	monitor.StartMonitor(ctx)
 }

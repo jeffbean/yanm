@@ -45,7 +45,8 @@ func NewInfluxDBStorage(url, token, org, bucket string) (*InfluxDBStorage, error
 func (i *InfluxDBStorage) StoreNetworkPerformance(
 	ctx context.Context,
 	timestamp time.Time,
-	downloadSpeed, uploadSpeed, ping float64,
+	downloadSpeed, uploadSpeed float64,
+	ping int64,
 	serverName string,
 ) error {
 	// Create point
@@ -67,6 +68,33 @@ func (i *InfluxDBStorage) StoreNetworkPerformance(
 	}
 
 	log.Printf("Successfully sent network performance metrics to InfluxDB (Server: %s)", serverName)
+	return nil
+}
+
+// StorePingResult sends ping metrics to InfluxDB
+func (i *InfluxDBStorage) StorePingResult(
+	ctx context.Context,
+	timestamp time.Time,
+	latencyMs int64,
+	serverName string,
+) error {
+	// Create point
+	point := influxdb2.NewPoint("ping",
+		map[string]string{
+			"server": serverName,
+		},
+		map[string]interface{}{
+			"latency_ms": latencyMs,
+		},
+		timestamp)
+
+	// Write point
+	if err := i.writeAPI.WritePoint(ctx, point); err != nil {
+		log.Printf("Failed to write metrics to InfluxDB: %v", err)
+		return fmt.Errorf("failed to write metrics: %v", err)
+	}
+
+	log.Printf("Successfully sent ping metrics to InfluxDB (Server: %s)", serverName)
 	return nil
 }
 

@@ -1,6 +1,6 @@
 network:
   speedtest:
-    interval_minutes: 5
+    interval_minutes: 1
     servers:
       max_ping_timeout: 500ms
       max_servers_to_test: 3

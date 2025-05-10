@@ -3,11 +3,13 @@ module yanm
 go 1.24.1
 
 require (
+	github.com/benbjohnson/clock v1.3.5
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/multierr v1.11.0
+	golang.org/x/time v0.11.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

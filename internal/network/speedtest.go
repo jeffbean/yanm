@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/showwin/speedtest-go/speedtest"
 	"go.uber.org/multierr"
 )
@@ -14,6 +15,9 @@ import (
 // SpeedTestClient implements the SpeedTester interface
 type SpeedTestClient struct {
 	st *speedtest.Speedtest
+
+	// testing fields
+	clock clock.Clock
 }
 
 // Verify SpeedTestClient implements SpeedTester interface
@@ -22,7 +26,8 @@ var _ SpeedTester = (*SpeedTestClient)(nil)
 // NewSpeedTestClient creates a new speed test client
 func NewSpeedTestClient() *SpeedTestClient {
 	return &SpeedTestClient{
-		st: speedtest.New(),
+		st:    speedtest.New(),
+		clock: clock.New(),
 	}
 }
 
@@ -51,13 +56,46 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 
 	performance := &NetworkPerformance{
 		TargetName:        target.Name,
-		Timestamp:         time.Now(),
+		Timestamp:         s.clock.Now(),
 		DownloadSpeedMbps: float64(target.DLSpeed.Mbps()),
 		UploadSpeedMbps:   float64(target.ULSpeed.Mbps()),
-		PingMs:            target.Latency.Seconds() * float64(time.Millisecond),
+		PingLatency:       target.Latency,
 	}
 
 	return performance, nil
+}
+
+func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, error) {
+	result := &PingResult{}
+
+	serverList, err := s.st.FetchServerListContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch server list: %v", err)
+	}
+
+	targets, err := serverList.Available().FindServer([]int{})
+	if err != nil {
+		return nil, fmt.Errorf("no suitable speedtest servers found: %v", err)
+	}
+
+	if len(targets) < 1 {
+		return nil, fmt.Errorf("no target ")
+	}
+
+	target := targets[0]
+	log.Printf("Selected server: %s", target.Name)
+
+	_callback := func(latency time.Duration) {
+		result.Latency = latency
+		result.Timestamp = s.clock.Now()
+		result.TargetName = target.Name
+	}
+
+	if err := target.PingTestContext(ctx, _callback); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (s *SpeedTestClient) performTests(ctx context.Context, target *speedtest.Server) error {

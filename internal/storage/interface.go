@@ -11,7 +11,16 @@ type MetricsStorage interface {
 	StoreNetworkPerformance(
 		ctx context.Context,
 		timestamp time.Time,
-		downloadSpeedMbps, uploadSpeedMbps, pingMs float64,
+		downloadSpeedMbps, uploadSpeedMbps float64,
+		pingMs int64,
+		serverName string,
+	) error
+
+	// StorePingResult stores the ping result.
+	StorePingResult(
+		ctx context.Context,
+		timestamp time.Time,
+		pingMs int64,
 		serverName string,
 	) error
 

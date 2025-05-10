@@ -11,7 +11,11 @@ import (
 // Configuration represents the application's configuration structure
 type Configuration struct {
 	Network struct {
-		Speedtest struct {
+		PingTest struct {
+			IntervalSeconds  int     `yaml:"interval_seconds"`
+			ThresholdSeconds float64 `yaml:"threshold_seconds"`
+		} `yaml:"ping_test"`
+		SpeedTest struct {
 			IntervalMinutes int `yaml:"interval_minutes"`
 			Servers         struct {
 				MaxPingTimeout   string `yaml:"max_ping_timeout"`
@@ -81,9 +85,17 @@ func (c *Configuration) validate() error {
 		c.Logging.OutputFile = "/var/log/yanm.log"
 	}
 
+	// Set default network ping_test configuration
+	if c.Network.PingTest.IntervalSeconds <= 0 {
+		c.Network.PingTest.IntervalSeconds = 15 // Default to 15 seconds
+	}
+	if c.Network.PingTest.ThresholdSeconds <= 0 {
+		c.Network.PingTest.ThresholdSeconds = 5.0 // Default to 5.0 seconds
+	}
+
 	// Set default network speedtest configuration
-	if c.Network.Speedtest.IntervalMinutes <= 0 {
-		c.Network.Speedtest.IntervalMinutes = 5
+	if c.Network.SpeedTest.IntervalMinutes <= 0 {
+		c.Network.SpeedTest.IntervalMinutes = 1
 	}
 
 	return nil

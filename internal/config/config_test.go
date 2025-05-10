@@ -47,7 +47,11 @@ network:
 					Engine: "no-op",
 				},
 				Network: struct {
-					Speedtest struct {
+					PingTest struct {
+						IntervalSeconds  int     `yaml:"interval_seconds"`
+						ThresholdSeconds float64 `yaml:"threshold_seconds"`
+					} `yaml:"ping_test"`
+					SpeedTest struct {
 						IntervalMinutes int `yaml:"interval_minutes"`
 						Servers         struct {
 							MaxPingTimeout   string `yaml:"max_ping_timeout"`
@@ -55,7 +59,14 @@ network:
 						} `yaml:"servers"`
 					} `yaml:"speedtest"`
 				}{
-					Speedtest: struct {
+					PingTest: struct {
+						IntervalSeconds int     `yaml:"interval_seconds"`
+						ThresholdSeconds float64 `yaml:"threshold_seconds"`
+					}{
+						IntervalSeconds: 60, // Default value
+						ThresholdSeconds: 5.0, // Default value
+					},
+					SpeedTest: struct {
 						IntervalMinutes int `yaml:"interval_minutes"`
 						Servers         struct {
 							MaxPingTimeout   string `yaml:"max_ping_timeout"`
@@ -105,7 +116,11 @@ metrics:
 					},
 				},
 				Network: struct {
-					Speedtest struct {
+					PingTest struct {
+						IntervalSeconds int     `yaml:"interval_seconds"`
+						ThresholdSeconds float64 `yaml:"threshold_seconds"`
+					} `yaml:"ping_test"`
+					SpeedTest struct {
 						IntervalMinutes int `yaml:"interval_minutes"`
 						Servers         struct {
 							MaxPingTimeout   string `yaml:"max_ping_timeout"`
@@ -113,7 +128,14 @@ metrics:
 						} `yaml:"servers"`
 					} `yaml:"speedtest"`
 				}{
-					Speedtest: struct {
+					PingTest: struct {
+						IntervalSeconds int     `yaml:"interval_seconds"`
+						ThresholdSeconds float64 `yaml:"threshold_seconds"`
+					}{
+						IntervalSeconds: 60, // Default value
+						ThresholdSeconds: 5.0, // Default value
+					},
+					SpeedTest: struct {
 						IntervalMinutes int `yaml:"interval_minutes"`
 						Servers         struct {
 							MaxPingTimeout   string `yaml:"max_ping_timeout"`
@@ -188,8 +210,8 @@ metrics:
 			}
 
 			// Network configuration
-			assert.Equal(t, tc.expectedConfig.Network.Speedtest.IntervalMinutes,
-				cfg.Network.Speedtest.IntervalMinutes, "Network Speedtest Interval")
+			assert.Equal(t, tc.expectedConfig.Network.SpeedTest.IntervalMinutes,
+				cfg.Network.SpeedTest.IntervalMinutes, "Network Speedtest Interval")
 
 			// Logging configuration
 			assert.Equal(t, tc.expectedConfig.Logging.Level,
