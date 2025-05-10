@@ -1,0 +1,22 @@
+network:
+  speedtest:
+    interval_minutes: 5
+    servers:
+      max_ping_timeout: 500ms
+      max_servers_to_test: 3
+
+prometheus:
+  push_gateway_url: ${PROMETHEUS_PUSH_GATEWAY_URL}
+  job_name: home_network_monitor
+  instance_name: ${HOSTNAME}
+
+logging:
+  level: info
+  output_file: /var/log/yanm.log
+
+alerts:
+  email: 
+    enabled: false
+  slack:
+    enabled: false
+    webhook_url: ${SLACK_WEBHOOK_URL}
