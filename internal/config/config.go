@@ -45,7 +45,7 @@ type Configuration struct {
 
 	// Debug server configuration
 	DebugServer struct {
-		Enabled     bool   `yaml:"enabled"`
+		Enabled       bool   `yaml:"enabled"`
 		ListenAddress string `yaml:"listen_address"`
 	} `yaml:"debug_server"`
 }

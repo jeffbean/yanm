@@ -35,7 +35,7 @@ func main() {
 	defer cancel()
 
 	debugCfg := debughttp.Config{ListenAddress: cfg.DebugServer.ListenAddress}
-	debugSrv := debughttp.NewServer(debugCfg, cfg, logger)
+	debugSrv := debughttp.NewServer(debugCfg, logger)
 
 	if cfg.DebugServer.Enabled {
 		debugSrv.Start()
@@ -82,8 +82,15 @@ func main() {
 
 	speedTestClient := network.NewSpeedTestClient(logger)
 
-	debugSrv.RegisterHandler("/debug/metrics", "metrics endpoint", dataStorage.MetricsHandler())
-	debugSrv.RegisterHandler("/debug/speedtest", "Shows recent speed test results", speedTestClient.MetricsHandler())
+	debugSrv.RegisterHandler("/debug/metrics",
+		"metrics endpoint",
+		dataStorage.MetricsHandler())
+	debugSrv.RegisterHandler("/debug/speedtest",
+		"Shows recent speed test results",
+		speedTestClient.MetricsHandler())
+	debugSrv.RegisterHandler("/debug/config",
+		"Shows the current application configuration (JSON)",
+		cfg.HandleConfigDump(logger))
 
 	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient, cfg)
 	monitorSvc.StartMonitor(ctx)

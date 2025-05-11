@@ -2,13 +2,13 @@ package debughttp
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	_ "embed"
+	"html/template"
 	"log/slog"
 	"net/http"
+	"sort"
+	"sync"
 	"time"
-
-	"yanm/internal/config" // Main application config
 )
 
 // Config holds the configuration for the debug HTTP server.
@@ -18,27 +18,26 @@ type Config struct {
 
 // Server represents the debug HTTP server.
 type Server struct {
-	httpServer         *http.Server
-	logger             *slog.Logger
-	appConfig          *config.Configuration // Reference to the main application's config
-	mux                *http.ServeMux
+	httpServer *http.Server
+	logger     *slog.Logger
+	mux        *http.ServeMux
+
+	mu                 sync.RWMutex
 	registeredHandlers map[string]string // path -> description
 }
 
 // NewServer creates and configures a new debug HTTP server.
-// It takes the debug server's configuration, the main application's configuration, and a logger.
-func NewServer(cfg Config, mainAppConfig *config.Configuration, logger *slog.Logger) *Server {
+// It takes the debug server's configuration and a logger.
+func NewServer(cfg Config, logger *slog.Logger) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
 		logger:             logger,
-		appConfig:          mainAppConfig,
 		mux:                mux,
 		registeredHandlers: make(map[string]string),
 	}
 
-	// Setup default handlers
-	s.RegisterHandler("/debug/config", "Shows the current application configuration (JSON)", http.HandlerFunc(s.handleDebugConfig))
+	// Setup default root handler
 	s.RegisterHandler("/", "Shows this help page with available debug endpoints", http.HandlerFunc(s.handleRoot))
 
 	s.httpServer = &http.Server{
@@ -84,19 +83,46 @@ func (s *Server) Stop(ctx context.Context) error {
 	return s.httpServer.Shutdown(shutdownCtx)
 }
 
-func (s *Server) handleDebugConfig(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(s.appConfig); err != nil {
-		s.logger.Error("Failed to encode config for debug endpoint", "error", err)
-		http.Error(w, "Failed to encode configuration", http.StatusInternalServerError)
-	}
-}
+//go:embed debug_root.html
+var _debugRootHTMLTemplate string
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintf(w, "Debug HTTP Server is running.\n\nAvailable endpoints:\n")
-	// List registered handlers
+	tmpl, err := template.New("debugRoot").Parse(_debugRootHTMLTemplate)
+	if err != nil {
+		s.logger.Error("Failed to parse debug root HTML template", "error", err)
+		http.Error(w, "Internal server error: could not load debug template", http.StatusInternalServerError)
+		return
+	}
+
+	type handlerInfo struct {
+		Path        string
+		Description string
+	}
+
+	var handlers []handlerInfo
+	s.mu.RLock() // Use RLock as we are only reading
 	for path, description := range s.registeredHandlers {
-		fmt.Fprintf(w, "  - %s  (%s)\n", path, description)
+		handlers = append(handlers, handlerInfo{Path: path, Description: description})
+	}
+	s.mu.RUnlock()
+
+	// Sort handlers by path for consistent ordering
+	sort.Slice(handlers, func(i, j int) bool {
+		return handlers[i].Path < handlers[j].Path
+	})
+
+	data := struct {
+		Handlers []handlerInfo
+	}{
+		Handlers: handlers,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.Execute(w, data); err != nil {
+		s.logger.ErrorContext(r.Context(), "Failed to execute debug root HTML template", "error", err)
+		// If headers haven't been sent, try to send an error
+		if w.Header().Get("Content-Type") == "" {
+			http.Error(w, "Internal server error: could not render debug page", http.StatusInternalServerError)
+		}
 	}
 }
