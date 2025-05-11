@@ -1,14 +1,15 @@
 package debughttp
 
 import (
+	"bytes" // Added for buffer
 	"context"
 	_ "embed"
 	"fmt"
+	htmltemplate "html/template" // Aliased for clarity
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
-	"text/template"
+	"sync" // Aliased for clarity
 	"yanm/internal/debughttp/debughandler"
 
 	"embed"
@@ -50,6 +51,7 @@ func (m *mux) Handle(route DebugRoute) error {
 	if route.Path == "" || route.Path[0] != '/' {
 		return fmt.Errorf("debug page path must begin with '/'")
 	}
+
 	return m.handleRoute(route)
 }
 
@@ -60,6 +62,7 @@ func (m *mux) handleRoute(route DebugRoute) error {
 	if route.Name == "" {
 		route.Name = route.Path
 	}
+
 	m.mux.Handle(route.Path, route.Handler)
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -83,6 +86,7 @@ func NewServer(cfg Config, logger *slog.Logger) (*Server, error) {
 		logger: logger,
 	}
 	server := Server{
+		mux: mux,
 		httpServer: &http.Server{
 			Addr:    cfg.ListenAddress,
 			Handler: mux,
@@ -97,12 +101,12 @@ func NewServer(cfg Config, logger *slog.Logger) (*Server, error) {
 		return nil, err
 	}
 
-	mux.handleRoute(DebugRoute{
+	mux.Handle(DebugRoute{
 		Path:    "/debug/static/",
 		Handler: http.StripPrefix("/debug/static/", http.FileServer(http.FS(staticSubFS))),
 	})
 
-	mux.handleRoute(DebugRoute{
+	mux.Handle(DebugRoute{
 		Path:    "/",
 		Handler: http.HandlerFunc(server.handleRoot),
 	})
@@ -136,15 +140,53 @@ var _debugRootHTMLTemplate string
 //go:embed static
 var staticFS embed.FS
 
-var _rootTemplate = template.Must(template.New("root").Parse(_debugRootHTMLTemplate))
+var _rootTemplate = htmltemplate.Must(htmltemplate.New("root").Parse(_debugRootHTMLTemplate))
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
-	debughandler.NewHTMLProducingHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		page := struct {
-			Handlers []DebugRoute
-		}{
-			Handlers: s.mux.routes,
+	// handleRoot is responsible for rendering the main index page of the debug server.
+	// It lists available debug routes.
+	// It needs to use the same layout mechanism as other pages created via NewHTMLProducingHandler.
+
+	// 1. Prepare the data for the _rootTemplate (which is the specific content for this page)
+	pageContentData := struct {
+		Handlers []DebugRoute
+	}{
+		Handlers: s.mux.routes, // Get the list of registered routes
+	}
+
+	// 2. Execute the _rootTemplate to get its HTML content
+	var contentBuf bytes.Buffer
+	if err := _rootTemplate.Execute(&contentBuf, pageContentData); err != nil {
+		s.logger.ErrorContext(r.Context(), "Failed to execute root debug template", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Prepare the data for the main layout template (_layoutTmpl from debughandler)
+	//    The NavLinks would ideally be generated based on s.mux.routes as well.
+	//    For now, this might be simplified or need adjustment based on how NavLinks are structured.
+	navLinks := []debughandler.NavLink{} // Placeholder - ideally generate this from s.mux.routes
+	for _, rt := range s.mux.routes {
+		name := rt.Name
+		if name == "" {
+			name = strings.Trim(rt.Path, "/")
+			if name == "" {
+				name = "Home"
+			}
 		}
-		_rootTemplate.Execute(w, page)
-	}))
+		navLinks = append(navLinks, debughandler.NavLink{Path: rt.Path, Name: name})
+	}
+
+	layoutPageData := debughandler.Page{
+		Title:       "Debug Home",
+		NavLinks:    navLinks,
+		ContentBody: htmltemplate.HTML(contentBuf.String()), // Use aliased htmltemplate.HTML
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Directly execute the layout template from the debughandler package.
+	if err := debughandler.ExecuteLayout(w, layoutPageData); err != nil {
+		s.logger.ErrorContext(r.Context(), "Failed to execute debug layout template for root", "error", err)
+		// Avoid writing to http.Error if headers might have been written by template execution
+	}
 }

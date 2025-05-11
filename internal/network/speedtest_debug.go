@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"text/template"
 	"yanm/internal/debughttp"
-	"yanm/internal/debughttp/debughandler"
 )
 
 const speedTestDebugHTMLTemplate = `
@@ -81,26 +80,32 @@ func (p *page) getPageData() ([]*PingResult, []*NetworkPerformance) {
 }
 
 func (p *page) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p.s.mu.RLock()
-	defer p.s.mu.RUnlock()
-
 	pings, networkTests := p.getPageData()
 	if err := _tempTmpl.Execute(w, struct {
-		Pings        []*PingResult
-		NetworkTests []*NetworkPerformance
+		Pings          []*PingResult
+		NetworkTests   []*NetworkPerformance
+		PingCount      int
+		NetworkCount   int
+		MaxHistory     int
 	}{
-		Pings:        pings,
-		NetworkTests: networkTests,
+		Pings:          pings,
+		NetworkTests:   networkTests,
+		PingCount:      len(pings),
+		NetworkCount:   len(networkTests),
+		MaxHistory:     maxHistory, // This is the const from speedtest.go
 	}); err != nil {
+		p.s.logger.ErrorContext(r.Context(), "Failed to execute template", "error", err)
 		http.Error(w, "Failed to execute template", http.StatusInternalServerError)
 	}
 }
 
-// Debug returns a DebugRoute to optioanlly expose functions.
+// Debug returns a DebugRoute for the speedtest debug page.
+// The Handler field contains the raw content-producing handler.
 func (s *SpeedTestClient) Debug() debughttp.DebugRoute {
 	return debughttp.DebugRoute{
-		Path:        "/debug/speedtest",
-		Description: "Speed Test Debug",
-		Handler:     debughandler.NewHTMLProducingHandler(&page{s: s}),
+		Path:        "/debug/speedtest", // Default path, can be overridden by caller if needed
+		Name:        "Speed Test Results",
+		Description: "Displays recent speed test and ping results.",
+		Handler:     &page{s: s}, // This is the http.Handler that produces the content for the page
 	}
 }

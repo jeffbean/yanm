@@ -14,6 +14,7 @@ import (
 
 	"yanm/internal/config"
 	"yanm/internal/debughttp"
+	"yanm/internal/debughttp/debughandler" // Added for debug page handlers
 	"yanm/internal/logger"
 	"yanm/internal/monitor"
 	"yanm/internal/network"
@@ -74,14 +75,29 @@ func run() error {
 
 	speedTestClient := network.NewSpeedTestClient(logger)
 
-	debugSrv, err := setupDebugServer(cfg, logger, []debughttp.DebugRoute{})
+	stDebugRoute := speedTestClient.Debug()
+	routes := []debughttp.DebugRoute{
+		{
+			Path:        stDebugRoute.Path,                                          // Use path from the actual route
+			Name:        stDebugRoute.Name,                                          // Use name from the actual route
+			Description: stDebugRoute.Description,                                   // Use description from the actual route
+			Handler:     debughandler.NewHTMLProducingHandler(stDebugRoute.Handler), // Wrap the raw handler
+		},
+		// Add other debug routes here
+	}
+
+	debugSrv, err := setupDebugServer(cfg.DebugServer.ListenAddress, logger, routes)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("Starting debug server", "address", cfg.DebugServer.ListenAddress)
-	debugSrv.Start()
-	defer debugSrv.Stop(ctx)
+	if cfg.DebugServer.Enabled { // setupDebugServer can return nil if disabled
+		logger.Info("Starting debug server", "address", cfg.DebugServer.ListenAddress)
+		debugSrv.Start()
+		defer debugSrv.Stop(ctx)
+	} else {
+		logger.Info("Debug server is not enabled, skipping start.")
+	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -106,26 +122,21 @@ func (p *MyTestPageProvider) RenderDebugContent(r *http.Request) (template.HTML,
 
 // setupDebugServer initializes the debug HTTP server and registers all known debug pages.
 func setupDebugServer(
-	cfg *config.Configuration,
+	listenAddress string,
 	logger *slog.Logger,
 	routes []debughttp.DebugRoute,
 ) (*debughttp.Server, error) {
-	if !cfg.DebugServer.Enabled {
-		logger.Info("Debug server is disabled in configuration.")
-		return nil, nil
-	}
-
-	debugServerConfig := debughttp.Config{ListenAddress: cfg.DebugServer.ListenAddress}
+	debugServerConfig := debughttp.Config{ListenAddress: listenAddress}
 	debugSrv, err := debughttp.NewServer(debugServerConfig, logger)
 	if err != nil {
-		logger.Error("Failed to initialize debug server", "error", err)
 		return nil, err
 	}
 
 	for _, route := range routes {
-		debugSrv.RegisterPage(route)
+		if err := debugSrv.RegisterPage(route); err != nil {
+			return nil, err
+		}
 	}
 
-	logger.Info("Debug server configured and pages registered.")
 	return debugSrv, nil
 }
