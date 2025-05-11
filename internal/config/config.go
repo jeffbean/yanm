@@ -42,6 +42,12 @@ type Configuration struct {
 
 	// Logging configuration
 	Logging logger.Config `yaml:"logging"`
+
+	// Debug server configuration
+	DebugServer struct {
+		Enabled     bool   `yaml:"enabled"`
+		ListenAddress string `yaml:"listen_address"`
+	} `yaml:"debug_server"`
 }
 
 // Load reads the configuration from the config file
@@ -91,6 +97,11 @@ func (c *Configuration) validate() error {
 
 	if c.Logging.OutputFile == "" {
 		c.Logging.OutputFile = "/var/log/yanm.log"
+	}
+
+	// Set default debug server configuration
+	if c.DebugServer.ListenAddress == "" {
+		c.DebugServer.ListenAddress = ":8090" // Default debug server address
 	}
 
 	// Set default network ping_test configuration

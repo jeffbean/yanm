@@ -13,3 +13,7 @@ prometheus:
 logging:
   level: info
   output_file: /var/log/yanm.log
+
+debug_server:
+  enabled: true
+  listen_address: :8090

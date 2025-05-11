@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"net/http"
 	"time"
 )
 
@@ -28,4 +29,7 @@ type SpeedTester interface {
 
 	// PerformPingTest runs a network ping and returns the latency in milliseconds.
 	PerformPingTest(ctx context.Context) (*PingResult, error)
+
+	// MetricsHandler returns an http.Handler to optioanlly expose functions.
+	MetricsHandler() http.Handler
 }

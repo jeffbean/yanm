@@ -17,12 +17,19 @@ type SpeedTestClient struct {
 	st *speedtest.Speedtest
 
 	logger *slog.Logger
+
+	mu                 sync.RWMutex
+	lastNetworkResults []*NetworkPerformance
+	lastPingResults    []*PingResult
+
 	// testing fields
 	clock clock.Clock
 }
 
 // Verify SpeedTestClient implements SpeedTester interface
 var _ SpeedTester = (*SpeedTestClient)(nil)
+
+const maxHistory = 10
 
 // NewSpeedTestClient creates a new speed test client
 func NewSpeedTestClient(logger *slog.Logger) *SpeedTestClient {
@@ -64,6 +71,13 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 		PingLatency:       target.Latency,
 	}
 
+	s.mu.Lock()
+	s.lastNetworkResults = append([]*NetworkPerformance{performance}, s.lastNetworkResults...)
+	if len(s.lastNetworkResults) > maxHistory {
+		s.lastNetworkResults = s.lastNetworkResults[:maxHistory]
+	}
+	s.mu.Unlock()
+
 	return performance, nil
 }
 
@@ -92,6 +106,13 @@ func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, err
 		result.Timestamp = s.clock.Now()
 		result.TargetName = target.Name
 	}
+
+	s.mu.Lock()
+	s.lastPingResults = append([]*PingResult{result}, s.lastPingResults...)
+	if len(s.lastPingResults) > maxHistory {
+		s.lastPingResults = s.lastPingResults[:maxHistory]
+	}
+	s.mu.Unlock()
 
 	if err := target.PingTestContext(ctx, _callback); err != nil {
 		return nil, err

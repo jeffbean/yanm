@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"yanm/internal/config"
+	"yanm/internal/debughttp"
 	"yanm/internal/logger"
 	"yanm/internal/monitor"
 	"yanm/internal/network"
@@ -30,9 +31,16 @@ func main() {
 
 	logger.Info("Yet Another Network Monitor (YANM) starting up...", "configFile", *configFile)
 	logger.Info("loaded configuration", "settings", cfg)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	debugCfg := debughttp.Config{ListenAddress: cfg.DebugServer.ListenAddress}
+	debugSrv := debughttp.NewServer(debugCfg, cfg, logger)
+
+	if cfg.DebugServer.Enabled {
+		debugSrv.Start()
+		defer debugSrv.Stop(ctx)
+	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
@@ -73,6 +81,10 @@ func main() {
 	defer dataStorage.Close(ctx)
 
 	speedTestClient := network.NewSpeedTestClient(logger)
+
+	debugSrv.RegisterHandler("/debug/metrics", "metrics endpoint", dataStorage.MetricsHandler())
+	debugSrv.RegisterHandler("/debug/speedtest", "Shows recent speed test results", speedTestClient.MetricsHandler())
+
 	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient, cfg)
 	monitorSvc.StartMonitor(ctx)
 }
