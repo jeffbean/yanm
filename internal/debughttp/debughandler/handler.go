@@ -4,9 +4,10 @@ import (
 	"bytes"
 	_ "embed"
 	"html/template"
-	"io" // Added for io.Writer in ExecuteLayout
+	"io" 
 	"net/http"
 	"net/http/httptest"
+	"context" // Added import
 )
 
 var (
@@ -16,7 +17,31 @@ var (
 	_layoutTmpl = template.Must(template.New("layout").Parse(_layoutHTMLTemplate))
 )
 
-// NavLink represents a navigation link in the debug UI.
+// contextKey is an unexported type for context keys defined in this package.
+// This prevents collisions with keys defined in other packages.
+type contextKey string
+
+// PageContextData holds data to be passed via request context for debug pages.
+type PageContextData struct {
+	Title    string
+	NavLinks []NavLink
+}
+
+// pageContextKey is the context key for PageContextData.
+const pageContextKey contextKey = "pageContext"
+
+// PageDataFromContext retrieves PageContextData from the context, if present.
+func PageDataFromContext(ctx context.Context) (PageContextData, bool) {
+	d, ok := ctx.Value(pageContextKey).(PageContextData)
+	return d, ok
+}
+
+// NewContextWithPageData returns a new context with the provided PageContextData.
+func NewContextWithPageData(parent context.Context, data PageContextData) context.Context {
+	return context.WithValue(parent, pageContextKey, data)
+}
+
+// NavLink represents a navigation link in the debug interface.
 // It should be exported so other packages can construct it if needed.
 // For now, it's primarily used by the layout template itself.
 // Path is the URL, Name is the display name.
@@ -67,10 +92,20 @@ func NewHTMLProducingHandler(source http.Handler) http.Handler {
 		recorder := httptest.NewRecorder()
 		source.ServeHTTP(recorder, r)
 
+		pageTitle := "Debug Page" // Default title
+		var navLinks []NavLink
+
+		if pageData, ok := PageDataFromContext(r.Context()); ok {
+			if pageData.Title != "" {
+				pageTitle = pageData.Title
+			}
+			navLinks = pageData.NavLinks
+		}
+
 		buf := bytes.NewBuffer(nil)
-		_layoutTmpl.Execute(buf, Page{
-			Title:       "Debug Page", // Generic title, can be overridden by source handler via headers if needed
-			NavLinks:    nil,          // NewHTMLProducingHandler doesn't know about other routes for NavLinks
+		ExecuteLayout(buf, Page{
+			Title:       pageTitle, // Use title from context or default
+			NavLinks:    navLinks,  // Retrieved from context or nil
 			ContentBody: template.HTML(recorder.Body.String()),
 		})
 

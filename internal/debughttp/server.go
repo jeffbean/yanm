@@ -75,7 +75,41 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"Debug HTTP request",
 		"method", r.Method,
 		"url", r.URL)
-	m.mux.ServeHTTP(w, r)
+
+	m.mu.RLock()
+	// Determine NavLinks and Title for the current request
+	navLinksResult := make([]debughandler.NavLink, 0, len(m.routes))
+	currentTitle := "Debug"
+	foundTitle := false
+
+	for _, rt := range m.routes {
+		navLinksResult = append(navLinksResult, debughandler.NavLink{Path: rt.Path, Name: rt.Name})
+		// Check if this route matches the current request path to set the title
+		// Exact match or prefix match for directory-like paths (ending in /)
+		if r.URL.Path == rt.Path || (strings.HasSuffix(rt.Path, "/") && strings.HasPrefix(r.URL.Path, rt.Path)) {
+			if rt.Path == "/" {
+				currentTitle = "Debug Home"
+				foundTitle = true
+			} else if !foundTitle || len(rt.Path) > len(currentTitle) { // Prefer more specific match for title
+				currentTitle = rt.Name
+				foundTitle = true
+			}
+		}
+	}
+	m.mu.RUnlock()
+
+	if !foundTitle && r.URL.Path == "/" { // Ensure root always gets its title if not specifically matched (e.g. if no routes yet)
+		currentTitle = "Debug Home"
+	}
+
+	pageCtxData := debughandler.PageContextData{
+		Title:    currentTitle,
+		NavLinks: navLinksResult,
+	}
+	ctxWithData := debughandler.NewContextWithPageData(r.Context(), pageCtxData)
+	rWithData := r.WithContext(ctxWithData)
+
+	m.mux.ServeHTTP(w, rWithData)
 }
 
 // NewServer creates and configures a new debug HTTP server.
@@ -163,24 +197,21 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Prepare the data for the main layout template (_layoutTmpl from debughandler)
-	//    The NavLinks would ideally be generated based on s.mux.routes as well.
-	//    For now, this might be simplified or need adjustment based on how NavLinks are structured.
-	navLinks := []debughandler.NavLink{} // Placeholder - ideally generate this from s.mux.routes
-	for _, rt := range s.mux.routes {
-		name := rt.Name
-		if name == "" {
-			name = strings.Trim(rt.Path, "/")
-			if name == "" {
-				name = "Home"
-			}
+	//    Retrieve PageContextData which includes Title and NavLinks prepared by mux.ServeHTTP.
+	pageCtxData, ok := debughandler.PageDataFromContext(r.Context())
+	if !ok {
+		s.logger.ErrorContext(r.Context(), "PageContextData not found in context for root handler, this is unexpected.")
+		// Fallback to sensible defaults if context is missing, though this indicates a problem upstream.
+		pageCtxData = debughandler.PageContextData{
+			Title:    "Debug Home",
+			NavLinks: []debughandler.NavLink{{Path: "/", Name: "Home"}}, // Minimal fallback
 		}
-		navLinks = append(navLinks, debughandler.NavLink{Path: rt.Path, Name: name})
 	}
 
 	layoutPageData := debughandler.Page{
-		Title:       "Debug Home",
-		NavLinks:    navLinks,
-		ContentBody: htmltemplate.HTML(contentBuf.String()), // Use aliased htmltemplate.HTML
+		Title:       pageCtxData.Title,    // From context
+		NavLinks:    pageCtxData.NavLinks, // From context
+		ContentBody: htmltemplate.HTML(contentBuf.String()),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
