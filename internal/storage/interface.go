@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"net/http"
 	"time"
 )
 
@@ -24,9 +23,6 @@ type MetricsStorage interface {
 		pingMs int64,
 		serverName string,
 	) error
-
-	// MetricsHandler returns an http.Handler to optioanlly expose functions.
-	MetricsHandler() http.Handler
 
 	// Close terminates the storage connection and performs any final operations
 	Close(ctx context.Context)

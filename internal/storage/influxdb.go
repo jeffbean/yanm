@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -99,11 +98,6 @@ func (i *InfluxDBStorage) StorePingResult(
 	}
 
 	i.logger.InfoContext(ctx, "Successfully sent ping metrics to InfluxDB", "server", serverName)
-	return nil
-}
-
-// MetricsHandler returns an http.Handler to optioanlly expose functions.
-func (i *InfluxDBStorage) MetricsHandler() http.Handler {
 	return nil
 }
 

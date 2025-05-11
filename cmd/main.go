@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"html/template"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
+
+	"log/slog"
 
 	"yanm/internal/config"
 	"yanm/internal/debughttp"
@@ -16,40 +21,30 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	configFile := flag.String("config", "config.yml", "Path to the configuration file")
 	flag.Parse()
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Failed to load configuration", err)
+		return err
 	}
 
 	logger, err := logger.New(cfg.Logging)
 	if err != nil {
-		log.Fatal("Failed to initialize logger", err)
+		return err
 	}
 
 	logger.Info("Yet Another Network Monitor (YANM) starting up...", "configFile", *configFile)
-	logger.Info("loaded configuration", "settings", cfg)
+	logger.Info("Loaded configuration", "settings", cfg)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	debugCfg := debughttp.Config{ListenAddress: cfg.DebugServer.ListenAddress}
-	debugSrv := debughttp.NewServer(debugCfg, logger)
-
-	if cfg.DebugServer.Enabled {
-		debugSrv.Start()
-		defer debugSrv.Stop(ctx)
-	}
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-	go func() {
-		sig := <-sigChan
-		logger.Info("Received signal, initiating shutdown...", "signal", sig.String())
-		cancel()
-		os.Exit(1)
-	}()
 
 	var dataStorage storage.MetricsStorage
 	switch cfg.Metrics.Engine {
@@ -68,30 +63,69 @@ func main() {
 			cfg.Metrics.InfluxDB.Bucket,
 		)
 	case "no-op":
-		fallthrough // Fallthrough to default for no-op
+		fallthrough
 	default:
-		if cfg.Metrics.Engine != "no-op" && cfg.Metrics.Engine != "" {
-			logger.Warn("Unsupported metrics engine specified in config, falling back to NoOpStorage.", "specifiedEngine", cfg.Metrics.Engine)
-		}
 		dataStorage = storage.NewNoOpStorage(logger)
 	}
 	if err != nil {
-		log.Fatal("Failed to initialize metrics storage", "error", err, "engine", cfg.Metrics.Engine)
+		return err
 	}
 	defer dataStorage.Close(ctx)
 
 	speedTestClient := network.NewSpeedTestClient(logger)
 
-	debugSrv.RegisterHandler("/debug/metrics",
-		"metrics endpoint",
-		dataStorage.MetricsHandler())
-	debugSrv.RegisterHandler("/debug/speedtest",
-		"Shows recent speed test results",
-		speedTestClient.MetricsHandler())
-	debugSrv.RegisterHandler("/debug/config",
-		"Shows the current application configuration (JSON)",
-		cfg.HandleConfigDump(logger))
+	debugSrv, err := setupDebugServer(cfg, logger, []debughttp.DebugRoute{})
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Starting debug server", "address", cfg.DebugServer.ListenAddress)
+	debugSrv.Start()
+	defer debugSrv.Stop(ctx)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigChan
+		logger.Info("Received signal, initiating shutdown...", "signal", sig.String())
+		cancel()
+	}()
 
 	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient, cfg)
 	monitorSvc.StartMonitor(ctx)
+	return nil
+}
+
+// MyTestPageProvider is a simple implementation of debughttp.PageContentProvider for testing.
+type MyTestPageProvider struct{}
+
+// RenderDebugContent returns a simple HTML string for the test page.
+func (p *MyTestPageProvider) RenderDebugContent(r *http.Request) (template.HTML, error) {
+	return template.HTML("<h1>Hello from MyTestPageProvider!</h1><p>This content is served directly via the PageContentProvider interface moved to debug.go.</p>"), nil
+}
+
+// setupDebugServer initializes the debug HTTP server and registers all known debug pages.
+func setupDebugServer(
+	cfg *config.Configuration,
+	logger *slog.Logger,
+	routes []debughttp.DebugRoute,
+) (*debughttp.Server, error) {
+	if !cfg.DebugServer.Enabled {
+		logger.Info("Debug server is disabled in configuration.")
+		return nil, nil
+	}
+
+	debugServerConfig := debughttp.Config{ListenAddress: cfg.DebugServer.ListenAddress}
+	debugSrv, err := debughttp.NewServer(debugServerConfig, logger)
+	if err != nil {
+		logger.Error("Failed to initialize debug server", "error", err)
+		return nil, err
+	}
+
+	for _, route := range routes {
+		debugSrv.RegisterPage(route)
+	}
+
+	logger.Info("Debug server configured and pages registered.")
+	return debugSrv, nil
 }

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - YANM Debug</title>
+    <link rel="stylesheet" href="/debug/static/styles.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            {{range .NavLinks}}
+            <li><a href="{{.Path}}">{{.Name}}</a></li>
+            {{end}}
+        </ul>
+    </nav>
+    <div class="container">
+        {{.ContentBody}}
+    </div>
+    <footer>
+        <p>YANM Debug Interface</p>
+    </footer>
+    <script src="/debug/static/scripts.js"></script>
+</body>
+</html>

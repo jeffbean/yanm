@@ -1,31 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debug Information</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        h1 { color: #333; }
-        ul { list-style-type: none; padding: 0; }
-        li { background-color: #fff; margin-bottom: 10px; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        a { text-decoration: none; color: #007bff; }
-        a:hover { text-decoration: underline; }
-        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Available Debug Endpoints</h1>
-        {{if .Handlers}}
-        <ul>
-            {{range .Handlers}}
-            <li><a href="{{.Path}}">{{.Path}}</a> - {{.Description}}</li>
-            {{end}}
-        </ul>
-        {{else}}
-        <p>No debug handlers registered.</p>
-        {{end}}
-    </div>
-</body>
-</html>
+<h2>Available Debug Endpoints</h2>
+{{if .Handlers}}
+<ul>
+    {{range .Handlers}}
+    <li><a href="{{.Path}}">{{.Path}}</a> - {{.Description}}</li>
+    {{end}}
+</ul>
+{{else}}
+<p>No debug handlers registered.</p>
+{{end}}

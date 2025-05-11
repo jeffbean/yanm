@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus/push"
 )
 
@@ -84,11 +82,6 @@ func (p *PrometheusStorage) StoreNetworkPerformance(
 
 	p.logger.InfoContext(ctx, "Successfully sent network performance metrics to Prometheus", "server", serverName)
 	return nil
-}
-
-// MetricsHandler returns an http.Handler for the Prometheus metrics endpoint.
-func (p *PrometheusStorage) MetricsHandler() http.Handler {
-	return promhttp.Handler()
 }
 
 func (p *PrometheusStorage) StorePingResult(

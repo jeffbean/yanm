@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"time"
 )
 
@@ -49,11 +48,6 @@ func (n *NoOpStorage) StorePingResult(
 	n.logger.InfoContext(ctx, "NoOpStorage: logging ping result",
 		"pingMs", pingMs,
 		"serverName", serverName)
-	return nil
-}
-
-// MetricsHandler returns an http.Handler to optioanlly expose functions.
-func (n *NoOpStorage) MetricsHandler() http.Handler {
 	return nil
 }
 

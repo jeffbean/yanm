@@ -3,13 +3,25 @@ package debughttp
 import (
 	"context"
 	_ "embed"
-	"html/template"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"sort"
+	"strings"
 	"sync"
-	"time"
+	"text/template"
+	"yanm/internal/debughttp/debughandler"
+
+	"embed"
+	"io/fs"
 )
+
+// DebugRoute defines a route for a debug page.
+type DebugRoute struct {
+	Name        string       // optional
+	Path        string       // required
+	Description string       // optional
+	Handler     http.Handler // required
+}
 
 // Config holds the configuration for the debug HTTP server.
 type Config struct {
@@ -20,47 +32,86 @@ type Config struct {
 type Server struct {
 	httpServer *http.Server
 	logger     *slog.Logger
-	mux        *http.ServeMux
+	mux        *mux
+}
 
-	mu                 sync.RWMutex
-	registeredHandlers map[string]string // path -> description
+type mux struct {
+	mux    *http.ServeMux
+	logger *slog.Logger
+
+	mu     sync.RWMutex
+	routes []DebugRoute
+}
+
+func (m *mux) Handle(route DebugRoute) error {
+	if route.Handler == nil {
+		return fmt.Errorf("handler is nil, cannot register page")
+	}
+	if route.Path == "" || route.Path[0] != '/' {
+		return fmt.Errorf("debug page path must begin with '/'")
+	}
+	return m.handleRoute(route)
+}
+
+func (m *mux) handleRoute(route DebugRoute) error {
+	if !strings.HasSuffix(route.Path, "/") {
+		route.Path = fmt.Sprintf("%s/", route.Path)
+	}
+	if route.Name == "" {
+		route.Name = route.Path
+	}
+	m.mux.Handle(route.Path, route.Handler)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.routes = append(m.routes, route)
+	return nil
+}
+
+func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	m.logger.DebugContext(r.Context(),
+		"Debug HTTP request",
+		"method", r.Method,
+		"url", r.URL)
+	m.mux.ServeHTTP(w, r)
 }
 
 // NewServer creates and configures a new debug HTTP server.
 // It takes the debug server's configuration and a logger.
-func NewServer(cfg Config, logger *slog.Logger) *Server {
-	mux := http.NewServeMux()
-
-	s := &Server{
-		logger:             logger,
-		mux:                mux,
-		registeredHandlers: make(map[string]string),
+func NewServer(cfg Config, logger *slog.Logger) (*Server, error) {
+	mux := &mux{
+		mux:    http.NewServeMux(),
+		logger: logger,
+	}
+	server := Server{
+		httpServer: &http.Server{
+			Addr:    cfg.ListenAddress,
+			Handler: mux,
+		},
+		logger: logger,
 	}
 
-	// Setup default root handler
-	s.RegisterHandler("/", "Shows this help page with available debug endpoints", http.HandlerFunc(s.handleRoot))
-
-	s.httpServer = &http.Server{
-		Addr:    cfg.ListenAddress,
-		Handler: mux,
+	// Setup default handlers
+	staticSubFS, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		logger.Error("Failed to create sub FS for static assets", "error", err)
+		return nil, err
 	}
-	return s
+
+	mux.handleRoute(DebugRoute{
+		Path:    "/debug/static/",
+		Handler: http.StripPrefix("/debug/static/", http.FileServer(http.FS(staticSubFS))),
+	})
+
+	mux.handleRoute(DebugRoute{
+		Path:    "/",
+		Handler: http.HandlerFunc(server.handleRoot),
+	})
+
+	return &server, nil
 }
 
-// RegisterHandler allows other packages to add their own handlers to the debug server.
-func (s *Server) RegisterHandler(path string, description string, handler http.Handler) {
-	if handler == nil {
-		return
-	}
-
-	if path == "" || path[0] != '/' {
-		s.logger.Warn("Debug handler path must begin with '/'", "path", path)
-		// Optionally, prefix with '/' or return an error
-		return
-	}
-	s.mux.Handle(path, handler)
-	s.registeredHandlers[path] = description
-	s.logger.Info("Registered new debug handler", "path", path, "description", description)
+func (s *Server) RegisterPage(route DebugRoute) error {
+	return s.mux.Handle(route)
 }
 
 // Start runs the debug HTTP server in a new goroutine.
@@ -76,53 +127,24 @@ func (s *Server) Start() {
 // Stop gracefully shuts down the debug HTTP server.
 func (s *Server) Stop(ctx context.Context) error {
 	s.logger.Info("Stopping debug HTTP server...")
-	// Create a context with a timeout for the shutdown, in case the provided context doesn't have one.
-	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	return s.httpServer.Shutdown(shutdownCtx)
+	return s.httpServer.Shutdown(ctx)
 }
 
 //go:embed debug_root.html
 var _debugRootHTMLTemplate string
 
+//go:embed static
+var staticFS embed.FS
+
+var _rootTemplate = template.Must(template.New("root").Parse(_debugRootHTMLTemplate))
+
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.New("debugRoot").Parse(_debugRootHTMLTemplate)
-	if err != nil {
-		s.logger.Error("Failed to parse debug root HTML template", "error", err)
-		http.Error(w, "Internal server error: could not load debug template", http.StatusInternalServerError)
-		return
-	}
-
-	type handlerInfo struct {
-		Path        string
-		Description string
-	}
-
-	var handlers []handlerInfo
-	s.mu.RLock() // Use RLock as we are only reading
-	for path, description := range s.registeredHandlers {
-		handlers = append(handlers, handlerInfo{Path: path, Description: description})
-	}
-	s.mu.RUnlock()
-
-	// Sort handlers by path for consistent ordering
-	sort.Slice(handlers, func(i, j int) bool {
-		return handlers[i].Path < handlers[j].Path
-	})
-
-	data := struct {
-		Handlers []handlerInfo
-	}{
-		Handlers: handlers,
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.Execute(w, data); err != nil {
-		s.logger.ErrorContext(r.Context(), "Failed to execute debug root HTML template", "error", err)
-		// If headers haven't been sent, try to send an error
-		if w.Header().Get("Content-Type") == "" {
-			http.Error(w, "Internal server error: could not render debug page", http.StatusInternalServerError)
+	debughandler.NewHTMLProducingHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page := struct {
+			Handlers []DebugRoute
+		}{
+			Handlers: s.mux.routes,
 		}
-	}
+		_rootTemplate.Execute(w, page)
+	}))
 }
