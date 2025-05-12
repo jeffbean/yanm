@@ -2,12 +2,12 @@ package debughandler
 
 import (
 	"bytes"
+	"context" // Added import
 	_ "embed"
 	"html/template"
-	"io" 
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"context" // Added import
 )
 
 var (
@@ -67,11 +67,9 @@ type NavLink struct {
 // Page represents the data passed to the layout template.
 // It includes the main content and any other metadata needed by the layout.
 type Page struct {
-	Title       string // Title of the HTML page
-	NavLinks    []NavLink // Navigation links for the header/sidebar
+	Title       string        // Title of the HTML page
+	NavLinks    []NavLink     // Navigation links for the header/sidebar
 	ContentBody template.HTML // The main HTML content for the page
-	// RequestContext can be used to pass around values to the template.
-	// It is not used by the layout, but can be used by the content.
 }
 
 // ExecuteLayout executes the main layout template with the provided Page data,
@@ -104,14 +102,15 @@ func NewHTMLProducingHandler(source http.Handler) http.Handler {
 
 		buf := bytes.NewBuffer(nil)
 		ExecuteLayout(buf, Page{
-			Title:       pageTitle, // Use title from context or default
-			NavLinks:    navLinks,  // Retrieved from context or nil
+			Title:       pageTitle,
+			NavLinks:    navLinks,
 			ContentBody: template.HTML(recorder.Body.String()),
 		})
 
 		for key := range recorder.Result().Header {
 			w.Header().Set(key, recorder.Result().Header.Get(key))
 		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8") // always expect HTML.
 
 		w.WriteHeader(recorder.Code)
 		buf.WriteTo(w)

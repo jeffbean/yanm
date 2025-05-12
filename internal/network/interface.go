@@ -2,8 +2,8 @@ package network
 
 import (
 	"context"
+	"net/http"
 	"time"
-	"yanm/internal/debughttp"
 )
 
 // NetworkPerformance represents the results of a network speed test
@@ -31,5 +31,5 @@ type SpeedTester interface {
 	PerformPingTest(ctx context.Context) (*PingResult, error)
 
 	// Debug returns a DebugRoute to optioanlly expose functions.
-	Debug() debughttp.DebugRoute
+	Debug() http.Handler
 }

@@ -76,14 +76,23 @@ func run() error {
 	speedTestClient := network.NewSpeedTestClient(logger)
 
 	stDebugRoute := speedTestClient.Debug()
+
+	// Create handler for the config debug page
+	configDebugHandler := config.NewConfigDebugPageProvider(cfg)
+
 	routes := []debughttp.DebugRoute{
 		{
-			Path:        stDebugRoute.Path,                                          // Use path from the actual route
-			Name:        stDebugRoute.Name,                                          // Use name from the actual route
-			Description: stDebugRoute.Description,                                   // Use description from the actual route
-			Handler:     debughandler.NewHTMLProducingHandler(stDebugRoute.Handler), // Wrap the raw handler
+			Path:        "/debug/speedtest",
+			Name:        "Speed Test Results",
+			Description: "Displays recent speed test and ping results.",
+			Handler:     debughandler.NewHTMLProducingHandler(stDebugRoute),
 		},
-		// Add other debug routes here
+		{
+			Path:        "/debug/config",
+			Name:        "Configuration",
+			Description: "Displays the current application configuration.",
+			Handler:     debughandler.NewHTMLProducingHandler(configDebugHandler),
+		},
 	}
 
 	debugSrv, err := setupDebugServer(cfg.DebugServer.ListenAddress, logger, routes)

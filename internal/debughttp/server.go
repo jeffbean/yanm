@@ -16,12 +16,23 @@ import (
 	"io/fs"
 )
 
+// NavVisibility determines if a debug route should be visible in navigation links.
+type NavVisibility int
+
+const (
+	// NavDefault defers to default behavior (typically include).
+	NavDefault NavVisibility = iota
+	// NavExclude explicitly excludes the route from navigation.
+	NavExclude
+)
+
 // DebugRoute defines a route for a debug page.
 type DebugRoute struct {
-	Name        string       // optional
-	Path        string       // required
-	Description string       // optional
-	Handler     http.Handler // required
+	Name        string        // optional
+	Path        string        // required
+	Description string        // optional
+	Handler     http.Handler  // required
+	Visibility  NavVisibility // Controls inclusion in navigation links
 }
 
 // Config holds the configuration for the debug HTTP server.
@@ -83,7 +94,12 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	foundTitle := false
 
 	for _, rt := range m.routes {
-		navLinksResult = append(navLinksResult, debughandler.NavLink{Path: rt.Path, Name: rt.Name})
+		// Add to NavLinks only if visibility is not Exclude
+		// Default (zero value) or explicit Include will be added.
+		if rt.Visibility != NavExclude {
+			navLinksResult = append(navLinksResult, debughandler.NavLink{Path: rt.Path, Name: rt.Name})
+		}
+
 		// Check if this route matches the current request path to set the title
 		// Exact match or prefix match for directory-like paths (ending in /)
 		if r.URL.Path == rt.Path || (strings.HasSuffix(rt.Path, "/") && strings.HasPrefix(r.URL.Path, rt.Path)) {
@@ -136,12 +152,14 @@ func NewServer(cfg Config, logger *slog.Logger) (*Server, error) {
 	}
 
 	mux.Handle(DebugRoute{
-		Path:    "/debug/static/",
-		Handler: http.StripPrefix("/debug/static/", http.FileServer(http.FS(staticSubFS))),
+		Path:       "/debug/static/",
+		Handler:    http.StripPrefix("/debug/static/", http.FileServer(http.FS(staticSubFS))),
+		Visibility: NavExclude, // Exclude static assets from nav links
 	})
 
 	mux.Handle(DebugRoute{
 		Path:    "/",
+		Name:    "Home",
 		Handler: http.HandlerFunc(server.handleRoot),
 	})
 
@@ -201,23 +219,20 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	pageCtxData, ok := debughandler.PageDataFromContext(r.Context())
 	if !ok {
 		s.logger.ErrorContext(r.Context(), "PageContextData not found in context for root handler, this is unexpected.")
-		// Fallback to sensible defaults if context is missing, though this indicates a problem upstream.
 		pageCtxData = debughandler.PageContextData{
 			Title:    "Debug Home",
-			NavLinks: []debughandler.NavLink{{Path: "/", Name: "Home"}}, // Minimal fallback
+			NavLinks: []debughandler.NavLink{{Path: "/", Name: "Home"}},
 		}
 	}
 
 	layoutPageData := debughandler.Page{
-		Title:       pageCtxData.Title,    // From context
-		NavLinks:    pageCtxData.NavLinks, // From context
+		Title:       pageCtxData.Title,
+		NavLinks:    pageCtxData.NavLinks,
 		ContentBody: htmltemplate.HTML(contentBuf.String()),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Directly execute the layout template from the debughandler package.
 	if err := debughandler.ExecuteLayout(w, layoutPageData); err != nil {
 		s.logger.ErrorContext(r.Context(), "Failed to execute debug layout template for root", "error", err)
-		// Avoid writing to http.Error if headers might have been written by template execution
 	}
 }
