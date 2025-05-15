@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"yanm/internal/logger"
 
 	"github.com/stretchr/testify/assert"
@@ -20,16 +21,63 @@ func createTempConfigFile(t *testing.T, content string) string {
 	return configPath
 }
 
-func TestLoad(t *testing.T) {
+func TestLoadFile_ErrorConditions(t *testing.T) {
 	testCases := []struct {
-		name           string
-		configContent  string
-		expectedConfig Configuration
-		errorMessage   string
+		name          string
+		pathArgument  string // Path to pass to LoadFile
+		configContent string // Content for the temporary config file, if one needs to be created (e.g., for invalid YAML)
+		errorMessage  string
 	}{
 		{
-			name: "Default Configuration",
-			expectedConfig: Configuration{
+			name:         "Empty path argument, default config file does not exist in CWD",
+			pathArgument: "no-op",
+			errorMessage: "failed to read config file",
+		},
+		{
+			name:         "Path to non-existent file",
+			pathArgument: "./non_existent_config.yml",
+			errorMessage: "failed to read config file",
+		},
+		{
+			name:          "Invalid YAML content",
+			pathArgument:  "USE_TEMP_FILE",
+			configContent: "metrics: { engine: prometheus, prometheus: { push_gateway_url: http://localhost:9091 }", // Malformed YAML
+			errorMessage:  "failed to parse config data: yaml: line 1: did not find expected ',' or '}'",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			pathToLoad := tc.pathArgument
+
+			// If we need to use a temp file with specific content
+			if tc.pathArgument == "USE_TEMP_FILE" {
+				tempDir := t.TempDir()
+				pathToLoad = filepath.Join(tempDir, "config.yml")
+				os.WriteFile(pathToLoad, []byte(tc.configContent), 0644)
+			}
+
+			_, err := LoadFile(pathToLoad)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.errorMessage)
+		})
+	}
+}
+
+func TestLoadFile_ContentAndValidation(t *testing.T) {
+	testCases := []struct {
+		name          string
+		pathArgument  string
+		configContent string
+		wantConfig    *Configuration
+		errorMessage  string // For validation errors
+	}{
+		{
+			name:          "Default Configuration (empty actual file)",
+			pathArgument:  "USE_TEMP_FILE",
+			configContent: "", // Empty content, leads to zero-value Configuration struct
+			wantConfig: &Configuration{
 				Metrics: struct {
 					Engine     string `yaml:"engine"`
 					Prometheus struct {
@@ -45,17 +93,6 @@ func TestLoad(t *testing.T) {
 					} `yaml:"influxdb"`
 				}{
 					Engine: "no-op",
-					Prometheus: struct {
-						PushGatewayURL string `yaml:"push_gateway_url"`
-						JobName        string `yaml:"job_name"`
-						InstanceName   string `yaml:"instance_name"`
-					}{},
-					InfluxDB: struct {
-						URL    string `yaml:"url"`
-						Token  string `yaml:"token"`
-						Org    string `yaml:"org"`
-						Bucket string `yaml:"bucket"`
-					}{},
 				},
 				Network: struct {
 					PingTest struct {
@@ -74,8 +111,8 @@ func TestLoad(t *testing.T) {
 						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					}{
-						IntervalSeconds:  15,  // Default value
-						ThresholdSeconds: 5.0, // Default value
+						IntervalSeconds:  15,
+						ThresholdSeconds: 5.0,
 					},
 					SpeedTest: struct {
 						IntervalMinutes int `yaml:"interval_minutes"`
@@ -92,19 +129,26 @@ func TestLoad(t *testing.T) {
 					Format:     "json",
 					OutputFile: "/var/log/yanm.log",
 				},
+				DebugServer: struct {
+					Enabled       bool   `yaml:"enabled"`
+					ListenAddress string `yaml:"listen_address"`
+				}{
+					Enabled:       false,
+					ListenAddress: ":8090",
+				},
 			},
 		},
 		{
-			name: "Prometheus Configuration",
+			name:         "Prometheus Configuration (valid)",
+			pathArgument: "USE_TEMP_FILE",
 			configContent: `
 metrics:
   engine: prometheus
   prometheus:
     push_gateway_url: http://localhost:9091
-    job_name: test_job
-    instance_name: test_instance
+    job_name: "test_job"
 `,
-			expectedConfig: Configuration{
+			wantConfig: &Configuration{
 				Metrics: struct {
 					Engine     string `yaml:"engine"`
 					Prometheus struct {
@@ -127,7 +171,6 @@ metrics:
 					}{
 						PushGatewayURL: "http://localhost:9091",
 						JobName:        "test_job",
-						InstanceName:   "test_instance",
 					},
 				},
 				Network: struct {
@@ -147,8 +190,8 @@ metrics:
 						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					}{
-						IntervalSeconds:  15,  // Default value
-						ThresholdSeconds: 5.0, // Default value
+						IntervalSeconds:  15,
+						ThresholdSeconds: 5.0,
 					},
 					SpeedTest: struct {
 						IntervalMinutes int `yaml:"interval_minutes"`
@@ -165,60 +208,57 @@ metrics:
 					Format:     "json",
 					OutputFile: "/var/log/yanm.log",
 				},
+				DebugServer: struct {
+					Enabled       bool   `yaml:"enabled"`
+					ListenAddress string `yaml:"listen_address"`
+				}{
+					Enabled:       false,
+					ListenAddress: ":8090",
+				},
 			},
 		},
 		{
-			name: "Invalid Metrics Engine",
-			configContent: `
-metrics:
+			name:         "Invalid Metrics Engine (validation)",
+			pathArgument: "USE_TEMP_FILE",
+			configContent: `metrics:
   engine: invalid_engine
 `,
+			wantConfig:   nil,
 			errorMessage: "metrics.engine must be 'prometheus' or 'no-op'",
 		},
 		{
-			name: "Prometheus Without URL",
-			configContent: `
-metrics:
+			name:         "Prometheus Without PushGatewayURL (validation)",
+			pathArgument: "USE_TEMP_FILE",
+			configContent: `metrics:
   engine: prometheus
+  prometheus:
+    job_name: "test_job"
 `,
+			wantConfig:   nil,
 			errorMessage: "metrics.prometheus.push_gateway_url is required",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create temporary config file
-			configPath := createTempConfigFile(t, tc.configContent)
-
-			// Set the CONFIG_PATH environment variable
-			originalConfigPath := os.Getenv("CONFIG_PATH")
-			t.Setenv("CONFIG_PATH", configPath)
-			defer os.Setenv("CONFIG_PATH", originalConfigPath)
-
-			// Load configuration
-			cfg, err := Load()
-
-			if tc.errorMessage != "" {
-				// Check for error
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errorMessage)
-				return
+			actualPathToLoad := tc.pathArgument
+			if tc.pathArgument == "USE_TEMP_FILE" {
+				actualPathToLoad = createTempConfigFile(t, tc.configContent)
 			}
 
-			// Check for no error
-			require.NoError(t, err)
-			require.NotNil(t, cfg)
+			cfg, err := LoadFile(actualPathToLoad)
 
-			assert.Equal(t, tc.expectedConfig.Metrics.Engine, cfg.Metrics.Engine, "Metrics Engine")
-			assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.PushGatewayURL, cfg.Metrics.Prometheus.PushGatewayURL, "Prometheus Push Gateway URL")
-			assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.JobName, cfg.Metrics.Prometheus.JobName, "Prometheus Job Name")
-			assert.Equal(t, tc.expectedConfig.Metrics.Prometheus.InstanceName, cfg.Metrics.Prometheus.InstanceName, "Prometheus Instance Name")
-			assert.Equal(t, tc.expectedConfig.Network.PingTest.IntervalSeconds, cfg.Network.PingTest.IntervalSeconds, "Ping Test Interval")
-			assert.Equal(t, tc.expectedConfig.Network.PingTest.ThresholdSeconds, cfg.Network.PingTest.ThresholdSeconds, "Ping Test Threshold")
-			assert.Equal(t, tc.expectedConfig.Network.SpeedTest.IntervalMinutes, cfg.Network.SpeedTest.IntervalMinutes, "Speed Test Interval")
-			assert.Equal(t, tc.expectedConfig.Logging.Level, cfg.Logging.Level, "Logging Level")
-			assert.Equal(t, tc.expectedConfig.Logging.Format, cfg.Logging.Format, "Logging Format")
-			assert.Equal(t, tc.expectedConfig.Logging.OutputFile, cfg.Logging.OutputFile, "Logging Output File")
+			if tc.errorMessage != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errorMessage)
+				require.Nil(t, cfg, "cfg should be nil on validation error")
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, cfg, "cfg should not be nil on successful load")
+
+				// Compare the entire configuration structure
+				assert.Equal(t, tc.wantConfig, cfg, "Configuration should match expected value")
+			}
 		})
 	}
 }

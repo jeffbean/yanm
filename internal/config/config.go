@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"yanm/internal/logger"
@@ -50,13 +52,7 @@ type Configuration struct {
 	} `yaml:"debug_server"`
 }
 
-// Load reads the configuration from the config file
-func Load() (*Configuration, error) {
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = "config.yml"
-	}
-
+func LoadFile(configPath string) (*Configuration, error) {
 	absConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve config path: %v", err)
@@ -67,10 +63,20 @@ func Load() (*Configuration, error) {
 		return nil, fmt.Errorf("failed to read config file: %v", err)
 	}
 
+	return Load(bytes.NewReader(configData))
+}
+
+// Load reads the configuration from the given io.Reader
+func Load(in io.Reader) (*Configuration, error) {
+	configData, err := io.ReadAll(in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from input: %w", err)
+	}
+
 	var configuration Configuration
 	err = yaml.Unmarshal(configData, &configuration)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %v", err)
+		return nil, fmt.Errorf("failed to parse config data: %w", err)
 	}
 
 	if err := configuration.validate(); err != nil {

@@ -21,6 +21,8 @@ import (
 	"yanm/internal/storage"
 )
 
+var configFile = flag.String("config", "config.yml", "Path to the configuration file")
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
@@ -28,10 +30,9 @@ func main() {
 }
 
 func run() error {
-	configFile := flag.String("config", "config.yml", "Path to the configuration file")
 	flag.Parse()
 
-	cfg, err := config.Load()
+	cfg, err := config.LoadFile(*configFile)
 	if err != nil {
 		return err
 	}

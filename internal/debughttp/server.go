@@ -4,16 +4,16 @@ import (
 	"bytes" // Added for buffer
 	"context"
 	_ "embed"
+	"errors" // For ErrPathAlreadyRegistered
 	"fmt"
 	htmltemplate "html/template" // Aliased for clarity
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"strings"
 	"sync" // Aliased for clarity
 	"yanm/internal/debughttp/debughandler"
-
 	"embed"
-	"io/fs"
 )
 
 // NavVisibility determines if a debug route should be visible in navigation links.
@@ -55,6 +55,9 @@ type mux struct {
 	routes []DebugRoute
 }
 
+// ErrPathAlreadyRegistered is returned when attempting to register a debug page path that is already in use.
+var ErrPathAlreadyRegistered = errors.New("debug page path already registered")
+
 func (m *mux) Handle(route DebugRoute) error {
 	if route.Handler == nil {
 		return fmt.Errorf("handler is nil, cannot register page")
@@ -74,9 +77,20 @@ func (m *mux) handleRoute(route DebugRoute) error {
 		route.Name = route.Path
 	}
 
-	m.mux.Handle(route.Path, route.Handler)
-	m.mu.Lock()
+	m.mu.Lock() // Lock for checking routes and appending
 	defer m.mu.Unlock()
+
+	// Check for duplicate path before registering with underlying mux or adding to routes
+	for _, existingRoute := range m.routes {
+		if existingRoute.Path == route.Path {
+			return fmt.Errorf("%w: %s", ErrPathAlreadyRegistered, route.Path)
+		}
+	}
+
+	// If we proceed here, it means the standard library Handle should not panic for duplicates,
+	// as we've already checked. However, for safety and clarity, if Handle *could* panic
+	// for other reasons, more robust panic recovery might be needed here in a real library.
+	m.mux.Handle(route.Path, route.Handler) // This is net/http.ServeMux.Handle
 	m.routes = append(m.routes, route)
 	return nil
 }
@@ -133,15 +147,17 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewServer(cfg Config, logger *slog.Logger) (*Server, error) {
 	mux := &mux{
 		mux:    http.NewServeMux(),
-		logger: logger,
+		logger: logger, // Use the validated logger
 	}
+	serverLogger := logger.With("component", "debug_server")
+
 	server := Server{
 		mux: mux,
 		httpServer: &http.Server{
 			Addr:    cfg.ListenAddress,
-			Handler: mux,
+			Handler: mux, // Use the custom mux
 		},
-		logger: logger,
+		logger: serverLogger, // Use the component-specific logger for the server itself
 	}
 
 	// Setup default handlers
@@ -171,7 +187,7 @@ func (s *Server) RegisterPage(route DebugRoute) error {
 }
 
 // Start runs the debug HTTP server in a new goroutine.
-func (s *Server) Start() {
+func (s *Server) Start(_ context.Context) {
 	s.logger.Info("Starting debug HTTP server", "address", s.httpServer.Addr)
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
