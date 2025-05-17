@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"log/slog"
 
@@ -103,7 +104,7 @@ func run() error {
 
 	if cfg.DebugServer.Enabled { // setupDebugServer can return nil if disabled
 		logger.Info("Starting debug server", "address", cfg.DebugServer.ListenAddress)
-		debugSrv.Start()
+		debugSrv.Start(ctx)
 		defer debugSrv.Stop(ctx)
 	} else {
 		logger.Info("Debug server is not enabled, skipping start.")
@@ -117,8 +118,15 @@ func run() error {
 		cancel()
 	}()
 
-	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient, cfg)
+	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient,
+		monitor.WithNetworkInterval(time.Duration(cfg.Network.SpeedTest.IntervalMinutes)*time.Minute),
+		monitor.WithPingInterval(time.Duration(cfg.Network.PingTest.IntervalSeconds)*time.Second),
+		monitor.WithPingTriggerThreshold(time.Duration(cfg.Network.PingTest.ThresholdSeconds)*time.Second),
+	)
 	monitorSvc.StartMonitor(ctx)
+	defer monitorSvc.StopMonitor()
+
+	<-ctx.Done()
 	return nil
 }
 

@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-	"yanm/internal/config"
 	"yanm/internal/network"
 	"yanm/internal/storage"
 
@@ -19,9 +18,13 @@ type Network struct {
 	client  network.SpeedTester
 	logger  *slog.Logger
 
-	pingInterval         time.Duration
-	networkInterval      time.Duration
+	pingLimiter          *rate.Limiter
+	networkLimiter       *rate.Limiter
+	networkTicker        *time.Ticker
 	pingTriggerThreshold time.Duration
+
+	stop                chan struct{}
+	triggerNetworkCheck chan struct{}
 
 	clock clock.Clock
 }
@@ -30,30 +33,56 @@ func NewNetwork(
 	logger *slog.Logger,
 	storage storage.MetricsStorage,
 	client network.SpeedTester,
-	config *config.Configuration,
+	opts ...Option,
 ) *Network {
-	return &Network{
+	opt := &options{
+		pingInterval:         time.Second * 15,
+		networkInterval:      time.Minute,
+		pingTriggerThreshold: time.Second * 10,
+	}
+
+	for _, o := range opts {
+		o.apply(opt)
+	}
+
+	m := &Network{
 		storage: storage,
 		client:  client,
 		logger:  logger,
 
-		pingInterval:         time.Duration(config.Network.PingTest.IntervalSeconds) * time.Second,
-		networkInterval:      time.Duration(config.Network.SpeedTest.IntervalMinutes) * time.Minute,
-		pingTriggerThreshold: time.Duration(config.Network.PingTest.ThresholdSeconds) * time.Second,
-		clock:                clock.New(),
+		pingLimiter:          rate.NewLimiter(rate.Every(opt.pingInterval), 1),
+		networkLimiter:       rate.NewLimiter(rate.Every(opt.networkInterval), 3),
+		networkTicker:        time.NewTicker(opt.networkInterval),
+		pingTriggerThreshold: opt.pingTriggerThreshold,
+
+		stop:                make(chan struct{}, 1),
+		triggerNetworkCheck: make(chan struct{}, 1),
+
+		clock: clock.New(),
 	}
+
+	return m
 }
 
-func (m *Network) StartMonitor(ctx context.Context) {
+// StartMonitor starts the monitor asynchronously.
+//
+// monitoring will stop when the parentContext is done.
+func (m *Network) StartMonitor(parentContext context.Context) {
+	go m.run(parentContext)
+}
+
+// StopMonitor stops the monitor.
+func (m *Network) StopMonitor() {
+	close(m.stop)
+}
+
+func (m *Network) run(parentContext context.Context) {
+	ctx, cancel := context.WithCancel(parentContext)
+	m.registerCancel(cancel)
+
 	log.Println("Starting monitoring loop...")
 
-	networkLimiter := rate.NewLimiter(rate.Every(m.networkInterval), 3) // Allow bursting for network checks
-	pingLimiter := rate.NewLimiter(rate.Every(m.pingInterval), 1)
-
-	var (
-		triggerNetworkCheck = make(chan struct{}, 1)
-		wg                  sync.WaitGroup
-	)
+	var wg sync.WaitGroup
 
 	wg.Add(2)
 
@@ -62,7 +91,7 @@ func (m *Network) StartMonitor(ctx context.Context) {
 		defer wg.Done()
 
 		for {
-			if err := pingLimiter.Wait(ctx); err != nil {
+			if err := m.pingLimiter.Wait(ctx); err != nil {
 				m.logger.ErrorContext(ctx, "Ping limiter error", "error", err)
 				return
 			}
@@ -77,11 +106,7 @@ func (m *Network) StartMonitor(ctx context.Context) {
 
 			if pingResult != nil && pingResult.Latency > m.pingTriggerThreshold {
 				m.logger.InfoContext(ctx, "Ping latency is high", "latency", pingResult.Latency)
-				select {
-				case triggerNetworkCheck <- struct{}{}: // Non-blocking send
-				default:
-					m.logger.InfoContext(ctx, "Network check trigger channel is full. Skipping immediate check.")
-				}
+				m.triggerNetwork(ctx)
 			}
 		}
 	}()
@@ -94,29 +119,36 @@ func (m *Network) StartMonitor(ctx context.Context) {
 			case <-ctx.Done():
 				m.logger.InfoContext(ctx, "Network check goroutine stopping...")
 				return
-			case <-triggerNetworkCheck:
+			case <-m.triggerNetworkCheck:
 				m.logger.InfoContext(ctx, "TRIGGER: Performing network check due to high ping latency...")
-				if networkLimiter.Allow() { // Respect the limiter even for triggered checks
-					m.performNetworkCheck(ctx)
-				} else {
-					m.logger.InfoContext(ctx, "Network check rate limit active, triggered check skipped.", "tokens", networkLimiter.Tokens())
+				if !m.networkLimiter.Allow() { // Respect the limiter even for triggered checks
+					m.logger.InfoContext(ctx, "Network check rate limit active, triggered check skipped.", "tokens", m.networkLimiter.Tokens())
+					return
 				}
-			case <-time.Tick(m.networkInterval):
+				m.performNetworkCheck(ctx)
+			case <-m.networkTicker.C:
 				m.logger.InfoContext(ctx, "SCHEDULED: Performing network check...")
-				if networkLimiter.Allow() {
-					m.performNetworkCheck(ctx)
-				} else {
-					m.logger.InfoContext(ctx, "Network check rate limit active, scheduled check skipped.", "tokens", networkLimiter.Tokens())
+				if !m.networkLimiter.Allow() {
+					m.logger.InfoContext(ctx, "Network check rate limit active, scheduled check skipped.", "tokens", m.networkLimiter.Tokens())
+					return
 				}
+				m.performNetworkCheck(ctx)
 			}
 		}
 	}()
 
 	m.logger.InfoContext(ctx, "Monitoring goroutines started.")
-	<-ctx.Done() // Wait for context cancellation (e.g., SIGINT)
-	m.logger.InfoContext(ctx, "Shutting down monitor...")
 	wg.Wait() // Wait for all goroutines to finish
 	m.logger.InfoContext(ctx, "Monitor shut down gracefully.")
+}
+
+func (m *Network) registerCancel(cancel context.CancelFunc) {
+	go func() {
+		// signal to goroutines here to stop.
+		<-m.stop
+		m.logger.InfoContext(context.Background(), "stop signal received, canceling context.")
+		cancel()
+	}()
 }
 
 func (m *Network) performPingCheck(ctx context.Context) (*network.PingResult, error) {
@@ -159,5 +191,13 @@ func (m *Network) performNetworkCheck(ctx context.Context) {
 	)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "Failed to store speed result", "error", err)
+	}
+}
+
+func (m *Network) triggerNetwork(ctx context.Context) {
+	select {
+	case m.triggerNetworkCheck <- struct{}{}:
+	default:
+		m.logger.InfoContext(ctx, "Network check trigger channel is full. Skipping immediate check.")
 	}
 }

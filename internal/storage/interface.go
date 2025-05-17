@@ -6,6 +6,8 @@ import (
 )
 
 // MetricsStorage defines the interface for storing network performance metrics
+//
+//go:generate mockgen -source interface.go -destination storagemock/storage_mock.go -package storagemock
 type MetricsStorage interface {
 	// StoreNetworkPerformance stores the network performance metrics
 	StoreNetworkPerformance(

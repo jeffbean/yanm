@@ -59,6 +59,9 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 	target := targets[0]
 	s.logger.InfoContext(ctx, "Selected server", "serverName", target.Name)
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.performTests(ctx, target); err != nil {
 		return nil, fmt.Errorf("failed to perform tests: %v", err)
 	}
@@ -71,12 +74,10 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 		PingLatency:       target.Latency,
 	}
 
-	s.mu.Lock()
 	s.lastNetworkResults = append([]*NetworkPerformance{performance}, s.lastNetworkResults...)
 	if len(s.lastNetworkResults) > maxHistory {
 		s.lastNetworkResults = s.lastNetworkResults[:maxHistory]
 	}
-	s.mu.Unlock()
 
 	return performance, nil
 }
@@ -101,18 +102,19 @@ func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, err
 	target := targets[0]
 	s.logger.InfoContext(ctx, "Selected server", "serverName", target.Name)
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	_callback := func(latency time.Duration) {
 		result.Latency = latency
 		result.Timestamp = s.clock.Now()
 		result.TargetName = target.Name
 	}
 
-	s.mu.Lock()
 	s.lastPingResults = append([]*PingResult{result}, s.lastPingResults...)
 	if len(s.lastPingResults) > maxHistory {
 		s.lastPingResults = s.lastPingResults[:maxHistory]
 	}
-	s.mu.Unlock()
 
 	if err := target.PingTestContext(ctx, _callback); err != nil {
 		return nil, err
