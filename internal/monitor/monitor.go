@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"sync"
 	"time"
@@ -23,7 +22,6 @@ type Network struct {
 	networkTicker        *time.Ticker
 	pingTriggerThreshold time.Duration
 
-	stop                chan struct{}
 	triggerNetworkCheck chan struct{}
 
 	clock clock.Clock
@@ -55,7 +53,6 @@ func NewNetwork(
 		networkTicker:        time.NewTicker(opt.networkInterval),
 		pingTriggerThreshold: opt.pingTriggerThreshold,
 
-		stop:                make(chan struct{}, 1),
 		triggerNetworkCheck: make(chan struct{}, 1),
 
 		clock: clock.New(),
@@ -64,23 +61,15 @@ func NewNetwork(
 	return m
 }
 
-// StartMonitor starts the monitor asynchronously.
+// Monitor starts the monitor asynchronously.
 //
 // monitoring will stop when the parentContext is done.
-func (m *Network) StartMonitor(parentContext context.Context) {
-	go m.run(parentContext)
+func (m *Network) Monitor(ctx context.Context) {
+	m.run(ctx)
 }
 
-// StopMonitor stops the monitor.
-func (m *Network) StopMonitor() {
-	close(m.stop)
-}
-
-func (m *Network) run(parentContext context.Context) {
-	ctx, cancel := context.WithCancel(parentContext)
-	m.registerCancel(cancel)
-
-	log.Println("Starting monitoring loop...")
+func (m *Network) run(ctx context.Context) {
+	m.logger.InfoContext(ctx, "Starting monitoring loop...")
 
 	var wg sync.WaitGroup
 
@@ -140,15 +129,6 @@ func (m *Network) run(parentContext context.Context) {
 	m.logger.InfoContext(ctx, "Monitoring goroutines started.")
 	wg.Wait() // Wait for all goroutines to finish
 	m.logger.InfoContext(ctx, "Monitor shut down gracefully.")
-}
-
-func (m *Network) registerCancel(cancel context.CancelFunc) {
-	go func() {
-		// signal to goroutines here to stop.
-		<-m.stop
-		m.logger.InfoContext(context.Background(), "stop signal received, canceling context.")
-		cancel()
-	}()
 }
 
 func (m *Network) performPingCheck(ctx context.Context) (*network.PingResult, error) {

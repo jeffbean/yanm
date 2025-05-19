@@ -22,5 +22,4 @@ func TestNewNetwork(t *testing.T) {
 
 	network := NewNetwork(logger, storageMock, networkMock)
 	require.NotNil(t, network)
-
 }

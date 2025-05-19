@@ -123,10 +123,9 @@ func run() error {
 		monitor.WithPingInterval(time.Duration(cfg.Network.PingTest.IntervalSeconds)*time.Second),
 		monitor.WithPingTriggerThreshold(time.Duration(cfg.Network.PingTest.ThresholdSeconds)*time.Second),
 	)
-	monitorSvc.StartMonitor(ctx)
-	defer monitorSvc.StopMonitor()
 
-	<-ctx.Done()
+	// blocks until ctx is done.
+	monitorSvc.Monitor(ctx)
 	return nil
 }
 

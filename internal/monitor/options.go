@@ -36,14 +36,14 @@ func WithNetworkInterval(interval time.Duration) Option {
 	return &networkIntervalOption{interval}
 }
 
-func WithPingTriggerThreshold(threshold time.Duration) Option {
-	return &pingTriggerThresholdOption{threshold}
-}
-
 type pingTriggerThresholdOption struct {
 	threshold time.Duration
 }
 
 func (o *pingTriggerThresholdOption) apply(opts *options) {
 	opts.pingTriggerThreshold = o.threshold
+}
+
+func WithPingTriggerThreshold(threshold time.Duration) Option {
+	return &pingTriggerThresholdOption{threshold}
 }
