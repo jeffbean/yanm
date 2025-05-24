@@ -8,7 +8,7 @@ import (
 
 // NetworkPerformance represents the results of a network speed test
 //
-//go:generate mockgen -source interface.go -destination networkmock/mock.go -package networkmock
+//go:generate mockgen -source interface.go -destination networkmock/storage_mock.go -package networkmock
 type NetworkPerformance struct {
 	TargetName        string
 	Timestamp         time.Time

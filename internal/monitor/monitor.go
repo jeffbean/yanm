@@ -12,13 +12,20 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// trackingLimiter is a rate limiter that tracks the limit and the current rate.
+type trackingLimiter struct {
+	*rate.Limiter
+
+	limit rate.Limit
+}
+
 type Network struct {
 	storage storage.MetricsStorage
 	client  network.SpeedTester
 	logger  *slog.Logger
 
-	pingLimiter          *rate.Limiter
-	networkLimiter       *rate.Limiter
+	pingLimiter          trackingLimiter
+	networkLimiter       trackingLimiter
 	networkTicker        *time.Ticker
 	pingTriggerThreshold time.Duration
 
@@ -43,13 +50,21 @@ func NewNetwork(
 		o.apply(opt)
 	}
 
+	pingLimit := rate.Every(opt.pingInterval)
+	networkLimit := rate.Every(opt.networkInterval)
 	m := &Network{
 		storage: storage,
 		client:  client,
 		logger:  logger,
 
-		pingLimiter:          rate.NewLimiter(rate.Every(opt.pingInterval), 1),
-		networkLimiter:       rate.NewLimiter(rate.Every(opt.networkInterval), 3),
+		pingLimiter: trackingLimiter{
+			Limiter: rate.NewLimiter(pingLimit, 1),
+			limit:   pingLimit,
+		},
+		networkLimiter: trackingLimiter{
+			Limiter: rate.NewLimiter(networkLimit, 3),
+			limit:   networkLimit,
+		},
 		networkTicker:        time.NewTicker(opt.networkInterval),
 		pingTriggerThreshold: opt.pingTriggerThreshold,
 
@@ -66,6 +81,26 @@ func NewNetwork(
 // monitoring will stop when the parentContext is done.
 func (m *Network) Monitor(ctx context.Context) {
 	m.run(ctx)
+}
+
+// PausePing pauses the ping checks.
+func (m *Network) PausePing() {
+	m.pingLimiter.Limiter.SetLimit(rate.Limit(0))
+}
+
+// ResumePing resumes the ping checks.
+func (m *Network) ResumePing() {
+	m.pingLimiter.Limiter.SetLimit(m.pingLimiter.limit)
+}
+
+// PauseNetwork pauses the network checks.
+func (m *Network) PauseNetwork() {
+	m.networkLimiter.Limiter.SetLimit(rate.Limit(0))
+}
+
+// ResumeNetwork resumes the network checks.
+func (m *Network) ResumeNetwork() {
+	m.networkLimiter.Limiter.SetLimit(m.networkLimiter.limit)
 }
 
 func (m *Network) run(ctx context.Context) {
@@ -127,6 +162,8 @@ func (m *Network) run(ctx context.Context) {
 	}()
 
 	m.logger.InfoContext(ctx, "Monitoring goroutines started.")
+	<-ctx.Done()
+	m.logger.InfoContext(ctx, "Shutting down monitor...")
 	wg.Wait() // Wait for all goroutines to finish
 	m.logger.InfoContext(ctx, "Monitor shut down gracefully.")
 }
