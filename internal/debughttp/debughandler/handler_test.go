@@ -52,7 +52,7 @@ func TestNewHTMLProducingHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a source handler that writes the specified content, status, and headers
-			sourceHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sourceHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if tt.sourceHeaders != nil {
 					for k, v := range tt.sourceHeaders {
 						w.Header().Set(k, v)

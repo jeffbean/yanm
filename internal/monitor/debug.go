@@ -77,19 +77,19 @@ func (p *monitorPage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "pause-ping":
 			p.monitor.PausePing()
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Ping paused"))
+			_, _ = w.Write([]byte("Ping paused"))
 		case "resume-ping":
 			p.monitor.ResumePing()
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Ping resumed"))
+			_, _ = w.Write([]byte("Ping resumed"))
 		case "pause-network":
 			p.monitor.PauseNetwork()
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Network paused"))
+			_, _ = w.Write([]byte("Network paused"))
 		case "resume-network":
 			p.monitor.ResumeNetwork()
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Network resumed"))
+			_, _ = w.Write([]byte("Network resumed"))
 		default:
 			http.Error(w, "Invalid action", http.StatusBadRequest)
 		}

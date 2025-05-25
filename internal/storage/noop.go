@@ -58,7 +58,7 @@ func (n *NoOpStorage) Close(_ context.Context) {
 }
 
 func (n *NoOpStorage) MetricsHTTPHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
 	})
 }

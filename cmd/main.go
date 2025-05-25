@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"html/template"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -140,14 +138,6 @@ func run() error {
 	// blocks until ctx is done.
 	monitorSvc.Monitor(ctx)
 	return nil
-}
-
-// MyTestPageProvider is a simple implementation of debughttp.PageContentProvider for testing.
-type MyTestPageProvider struct{}
-
-// RenderDebugContent returns a simple HTML string for the test page.
-func (p *MyTestPageProvider) RenderDebugContent(r *http.Request) (template.HTML, error) {
-	return template.HTML("<h1>Hello from MyTestPageProvider!</h1><p>This content is served directly via the PageContentProvider interface moved to debug.go.</p>"), nil
 }
 
 // setupDebugServer initializes the debug HTTP server and registers all known debug pages.

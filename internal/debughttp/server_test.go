@@ -27,7 +27,7 @@ func TestNewServer(t *testing.T) {
 // TestServer_RegisterPage tests various scenarios for page registration,
 // including input validation, path/name normalization, and successful registration.
 func TestServer_RegisterPage(t *testing.T) {
-	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 
 		_, err := w.Write([]byte("test content"))
@@ -163,7 +163,7 @@ func TestServer_RegisterPage(t *testing.T) {
 
 // TestServer_RegisterPage_DuplicateError tests that registering the same path twice returns an error.
 func TestServer_RegisterPage_DuplicateError(t *testing.T) {
-	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("test content"))
 		require.NoError(t, err, "Write() returned an unexpected error: %v", err)
@@ -219,7 +219,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 		{
 			name: "Simple HTML handler (no layout)",
 			setupMux: func(m *mux) {
-				basicHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				basicHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "text/html; charset=utf-8") // Handler must set its own type
 					w.Write([]byte("<p>Hello from basic handler</p>"))
 				})
@@ -236,7 +236,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 		{
 			name: "HTMLProducingHandler with layout",
 			setupMux: func(m *mux) {
-				contentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				contentHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Write([]byte("<h1>Content Page</h1><p>Some details here.</p>"))
 				})
 				// NewHTMLProducingHandler only takes the source handler.
@@ -260,7 +260,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 		},
 		{
 			name: "Route not found (404)",
-			setupMux: func(m *mux) {
+			setupMux: func(_ *mux) {
 				// No routes registered for this specific test, or a route that won't match
 			},
 			reqPath:            "/this-path-does-not-exist",
@@ -272,7 +272,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 		{
 			name: "Root path with HTMLProducingHandler",
 			setupMux: func(m *mux) {
-				rootContentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				rootContentHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Write([]byte("<h2>Welcome to Debug Home</h2>"))
 				})
 				producingHandler := debughandler.NewHTMLProducingHandler(rootContentHandler)
@@ -280,7 +280,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 				require.NoError(t, err)
 
 				// Add another page to see it in nav along with Home
-				otherContentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				otherContentHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Write([]byte("<h1>Other Page</h1>"))
 				})
 				otherProducingHandler := debughandler.NewHTMLProducingHandler(otherContentHandler)
@@ -302,7 +302,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 		{
 			name: "HTMLProducingHandler returns error status",
 			setupMux: func(m *mux) {
-				errorContentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				errorContentHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError) // Set error status
 					w.Write([]byte("<h1>Internal Server Error</h1><p>Something went wrong.</p>"))
 				})
@@ -324,7 +324,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 			name: "Layout execution error",
 			setupMux: func(m *mux) {
 				// A simple handler that should try to render through the layout
-				contentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				contentHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Write([]byte("<h1>Content that may be partially written</h1>"))
 				})
 				producingHandler := debughandler.NewHTMLProducingHandler(contentHandler)
@@ -363,16 +363,13 @@ func TestMux_ServeHTTP(t *testing.T) {
 			// Check status code using type assertion to get to underlying recorder if necessary
 			var finalStatusCode int
 			if frw, ok := rr.(*failingResponseWriter); ok {
-				finalStatusCode = frw.ResponseRecorder.Code
+				finalStatusCode = frw.Code
 			} else if rec, ok := rr.(*httptest.ResponseRecorder); ok {
 				finalStatusCode = rec.Code
 			}
 			assert.Equal(t, tc.expectedStatusCode, finalStatusCode, "Status code mismatch")
 
-			if tc.name == "Layout execution error" {
-				// No log assertion needed here, and body is unreliable.
-				// The primary check is that the status is OK and no panic occurred.
-			} else if rec, ok := rr.(*httptest.ResponseRecorder); ok { // Only check body for non-failing recorder cases
+			if rec, ok := rr.(*httptest.ResponseRecorder); ok { // Only check body for non-failing recorder cases
 				bodyStr := rec.Body.String()
 				for _, expected := range tc.expectedBody {
 					assert.Contains(t, bodyStr, expected, "Expected body content not found: %s", expected)
@@ -385,7 +382,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 			// Check headers using type assertion
 			var finalHeaders http.Header
 			if frw, ok := rr.(*failingResponseWriter); ok {
-				finalHeaders = frw.ResponseRecorder.Header()
+				finalHeaders = frw.Header()
 			} else if rec, ok := rr.(*httptest.ResponseRecorder); ok {
 				finalHeaders = rec.Header()
 			}

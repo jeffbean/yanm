@@ -18,7 +18,7 @@ type configPage struct {
 }
 
 // ServeHTTP handles the request for the configuration debug page.
-func (p *configPage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *configPage) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	yamlBytes, err := yaml.Marshal(p.cfg)
 	if err != nil {
 		http.Error(w, "Failed to render configuration", http.StatusInternalServerError)

@@ -27,13 +27,13 @@ type trackingLimiter struct {
 
 func (l *trackingLimiter) Status() string {
 	// returning the current limit is more useful than the stored limit.
-	switch l.Limiter.Limit() {
+	switch l.Limit() {
 	case 0:
 		return "Paused"
 	case rate.Inf:
 		return "Unlimited"
 	default:
-		return fmt.Sprintf("%v / %v", l.Limiter.Limit(), l.Limiter.Burst())
+		return fmt.Sprintf("%v / %v", l.Limit(), l.Burst())
 	}
 }
 
@@ -103,26 +103,26 @@ func (m *Network) Monitor(ctx context.Context) {
 
 // PausePing pauses the ping checks.
 func (m *Network) PausePing() {
-	m.pingLimiter.Limiter.SetLimit(rate.Limit(0))
-	m.pingLimiter.Limiter.SetBurst(0)
+	m.pingLimiter.SetLimit(rate.Limit(0))
+	m.pingLimiter.SetBurst(0)
 }
 
 // ResumePing resumes the ping checks.
 func (m *Network) ResumePing() {
-	m.pingLimiter.Limiter.SetLimit(m.pingLimiter.originalLimit)
-	m.pingLimiter.Limiter.SetBurst(_burstPing)
+	m.pingLimiter.SetLimit(m.pingLimiter.originalLimit)
+	m.pingLimiter.SetBurst(_burstPing)
 }
 
 // PauseNetwork pauses the network checks.
 func (m *Network) PauseNetwork() {
-	m.networkLimiter.Limiter.SetLimit(rate.Limit(0))
-	m.networkLimiter.Limiter.SetBurst(0)
+	m.networkLimiter.SetLimit(rate.Limit(0))
+	m.networkLimiter.SetBurst(0)
 }
 
 // ResumeNetwork resumes the network checks.
 func (m *Network) ResumeNetwork() {
-	m.networkLimiter.Limiter.SetLimit(m.networkLimiter.originalLimit)
-	m.networkLimiter.Limiter.SetBurst(_burstNetwork)
+	m.networkLimiter.SetLimit(m.networkLimiter.originalLimit)
+	m.networkLimiter.SetBurst(_burstNetwork)
 }
 
 func (m *Network) run(ctx context.Context) {

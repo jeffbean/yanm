@@ -4,7 +4,6 @@ import (
 	"bytes" // Added for buffer
 	"context"
 	"embed"
-	_ "embed"
 	"errors" // For ErrPathAlreadyRegistered
 	"fmt"
 	htmltemplate "html/template" // Aliased for clarity
