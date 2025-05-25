@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -12,11 +13,28 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	_burstPing    = 1
+	_burstNetwork = 3
+)
+
 // trackingLimiter is a rate limiter that tracks the limit and the current rate.
 type trackingLimiter struct {
 	*rate.Limiter
 
-	limit rate.Limit
+	originalLimit rate.Limit
+}
+
+func (l *trackingLimiter) Status() string {
+	// returning the current limit is more useful than the stored limit.
+	switch l.Limiter.Limit() {
+	case 0:
+		return "Paused"
+	case rate.Inf:
+		return "Unlimited"
+	default:
+		return fmt.Sprintf("%v / %v", l.Limiter.Limit(), l.Limiter.Burst())
+	}
 }
 
 type Network struct {
@@ -58,12 +76,12 @@ func NewNetwork(
 		logger:  logger,
 
 		pingLimiter: trackingLimiter{
-			Limiter: rate.NewLimiter(pingLimit, 1),
-			limit:   pingLimit,
+			Limiter:       rate.NewLimiter(pingLimit, _burstPing),
+			originalLimit: pingLimit,
 		},
 		networkLimiter: trackingLimiter{
-			Limiter: rate.NewLimiter(networkLimit, 3),
-			limit:   networkLimit,
+			Limiter:       rate.NewLimiter(networkLimit, _burstNetwork),
+			originalLimit: networkLimit,
 		},
 		networkTicker:        time.NewTicker(opt.networkInterval),
 		pingTriggerThreshold: opt.pingTriggerThreshold,
@@ -86,21 +104,25 @@ func (m *Network) Monitor(ctx context.Context) {
 // PausePing pauses the ping checks.
 func (m *Network) PausePing() {
 	m.pingLimiter.Limiter.SetLimit(rate.Limit(0))
+	m.pingLimiter.Limiter.SetBurst(0)
 }
 
 // ResumePing resumes the ping checks.
 func (m *Network) ResumePing() {
-	m.pingLimiter.Limiter.SetLimit(m.pingLimiter.limit)
+	m.pingLimiter.Limiter.SetLimit(m.pingLimiter.originalLimit)
+	m.pingLimiter.Limiter.SetBurst(_burstPing)
 }
 
 // PauseNetwork pauses the network checks.
 func (m *Network) PauseNetwork() {
 	m.networkLimiter.Limiter.SetLimit(rate.Limit(0))
+	m.networkLimiter.Limiter.SetBurst(0)
 }
 
 // ResumeNetwork resumes the network checks.
 func (m *Network) ResumeNetwork() {
-	m.networkLimiter.Limiter.SetLimit(m.networkLimiter.limit)
+	m.networkLimiter.Limiter.SetLimit(m.networkLimiter.originalLimit)
+	m.networkLimiter.Limiter.SetBurst(_burstNetwork)
 }
 
 func (m *Network) run(ctx context.Context) {
@@ -115,22 +137,27 @@ func (m *Network) run(ctx context.Context) {
 		defer wg.Done()
 
 		for {
-			if err := m.pingLimiter.Wait(ctx); err != nil {
-				m.logger.ErrorContext(ctx, "Ping limiter error", "error", err)
+			select {
+			case <-ctx.Done():
+				m.logger.InfoContext(ctx, "Ping check goroutine stopping...")
 				return
-			}
+			case <-time.Tick(time.Second):
+				if !m.pingLimiter.Allow() {
+					continue
+				}
 
-			m.logger.InfoContext(ctx, "Performing ping check...")
-			pingResult, err := m.performPingCheck(ctx)
-			if err != nil {
-				// TODO: trigger network check for some ping error conditions.
-				m.logger.ErrorContext(ctx, "Ping failed", "error", err)
-				continue
-			}
+				m.logger.InfoContext(ctx, "Performing ping check...")
+				pingResult, err := m.performPingCheck(ctx)
+				if err != nil {
+					// TODO: trigger network check for some ping error conditions.
+					m.logger.ErrorContext(ctx, "Ping failed", "error", err)
+					continue
+				}
 
-			if pingResult != nil && pingResult.Latency > m.pingTriggerThreshold {
-				m.logger.InfoContext(ctx, "Ping latency is high", "latency", pingResult.Latency)
-				m.triggerNetwork(ctx)
+				if pingResult != nil && pingResult.Latency > m.pingTriggerThreshold {
+					m.logger.InfoContext(ctx, "Ping latency is high", "latency", pingResult.Latency)
+					m.triggerNetwork(ctx)
+				}
 			}
 		}
 	}()
@@ -147,14 +174,14 @@ func (m *Network) run(ctx context.Context) {
 				m.logger.InfoContext(ctx, "TRIGGER: Performing network check due to high ping latency...")
 				if !m.networkLimiter.Allow() { // Respect the limiter even for triggered checks
 					m.logger.InfoContext(ctx, "Network check rate limit active, triggered check skipped.", "tokens", m.networkLimiter.Tokens())
-					return
+					continue
 				}
 				m.performNetworkCheck(ctx)
 			case <-m.networkTicker.C:
 				m.logger.InfoContext(ctx, "SCHEDULED: Performing network check...")
 				if !m.networkLimiter.Allow() {
 					m.logger.InfoContext(ctx, "Network check rate limit active, scheduled check skipped.", "tokens", m.networkLimiter.Tokens())
-					return
+					continue
 				}
 				m.performNetworkCheck(ctx)
 			}

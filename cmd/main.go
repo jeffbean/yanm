@@ -77,23 +77,33 @@ func run() error {
 
 	speedTestClient := network.NewSpeedTestClient(logger)
 
-	stDebugRoute := speedTestClient.Debug()
-
 	// Create handler for the config debug page
 	configDebugHandler := config.NewConfigDebugPageProvider(cfg)
+	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient,
+		monitor.WithNetworkInterval(time.Duration(cfg.Network.SpeedTest.IntervalMinutes)*time.Minute),
+		monitor.WithPingInterval(time.Duration(cfg.Network.PingTest.IntervalSeconds)*time.Second),
+		monitor.WithPingTriggerThreshold(time.Duration(cfg.Network.PingTest.ThresholdSeconds)*time.Second),
+	)
 
 	routes := []debughttp.DebugRoute{
 		{
 			Path:        "/debug/speedtest",
 			Name:        "Speed Test Results",
 			Description: "Displays recent speed test and ping results.",
-			Handler:     debughandler.NewHTMLProducingHandler(stDebugRoute),
+			Handler:     debughandler.NewHTMLProducingHandler(speedTestClient.Debug()),
 		},
 		{
 			Path:        "/debug/config",
 			Name:        "Configuration",
 			Description: "Displays the current application configuration.",
 			Handler:     debughandler.NewHTMLProducingHandler(configDebugHandler),
+		},
+		{
+			Path:        "/debug/monitor",
+			Name:        "Monitor",
+			Description: "Controls the monitor service.",
+			Handler: debughandler.NewHTMLProducingHandler(
+				monitor.NewMonitorDebugPageProvider(monitorSvc)),
 		},
 	}
 
@@ -117,12 +127,6 @@ func run() error {
 		logger.Info("Received signal, initiating shutdown...", "signal", sig.String())
 		cancel()
 	}()
-
-	monitorSvc := monitor.NewNetwork(logger, dataStorage, speedTestClient,
-		monitor.WithNetworkInterval(time.Duration(cfg.Network.SpeedTest.IntervalMinutes)*time.Minute),
-		monitor.WithPingInterval(time.Duration(cfg.Network.PingTest.IntervalSeconds)*time.Second),
-		monitor.WithPingTriggerThreshold(time.Duration(cfg.Network.PingTest.ThresholdSeconds)*time.Second),
-	)
 
 	// blocks until ctx is done.
 	monitorSvc.Monitor(ctx)

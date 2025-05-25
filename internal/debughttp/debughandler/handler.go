@@ -101,11 +101,16 @@ func NewHTMLProducingHandler(source http.Handler) http.Handler {
 		}
 
 		buf := bytes.NewBuffer(nil)
-		ExecuteLayout(buf, Page{
+		if err := ExecuteLayout(buf, Page{
 			Title:       pageTitle,
 			NavLinks:    navLinks,
 			ContentBody: template.HTML(recorder.Body.String()),
-		})
+		}); err != nil {
+			// should be an invariant violation.
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to execute layout template"))
+			return
+		}
 
 		for key := range recorder.Result().Header {
 			w.Header().Set(key, recorder.Result().Header.Get(key))
