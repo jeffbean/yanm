@@ -7,7 +7,6 @@ Type=simple
 User=pi
 WorkingDirectory=/opt/yanm
 ExecStart=/opt/yanm/yanm
-EnvironmentFile=/etc/default/yanm
 Restart=on-failure
 RestartSec=30
 

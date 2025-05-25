@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -49,9 +49,9 @@ jobs:
         go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
         golangci-lint run --enable-all
 
-    - name: Upload Test Results
+    - name: Upload Coverage Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results
+        name: coverage.txt
         path: coverage.txt

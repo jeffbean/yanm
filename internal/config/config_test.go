@@ -141,9 +141,6 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 			configContent: `
 metrics:
   engine: prometheus
-  prometheus:
-    push_gateway_url: http://localhost:9091
-    job_name: "test_job"
 `,
 			wantConfig: &Configuration{
 				Metrics: struct {
@@ -211,17 +208,6 @@ metrics:
 `,
 			wantConfig:   nil,
 			errorMessage: "metrics.engine must be 'prometheus' or 'no-op'",
-		},
-		{
-			name:         "Prometheus Without PushGatewayURL (validation)",
-			pathArgument: "USE_TEMP_FILE",
-			configContent: `metrics:
-  engine: prometheus
-  prometheus:
-    job_name: "test_job"
-`,
-			wantConfig:   nil,
-			errorMessage: "metrics.prometheus.push_gateway_url is required",
 		},
 	}
 
