@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"net/http"
 	"time"
 )
 
@@ -28,4 +29,7 @@ type MetricsStorage interface {
 
 	// Close terminates the storage connection and performs any final operations
 	Close(ctx context.Context)
+
+	// MetricsHTTPHandler returns the HTTP handler for metrics
+	MetricsHTTPHandler() http.Handler
 }

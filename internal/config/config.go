@@ -30,9 +30,6 @@ type Configuration struct {
 	Metrics struct {
 		Engine     string `yaml:"engine"`
 		Prometheus struct {
-			PushGatewayURL string `yaml:"push_gateway_url"`
-			JobName        string `yaml:"job_name"`
-			InstanceName   string `yaml:"instance_name"`
 		} `yaml:"prometheus"`
 		InfluxDB struct {
 			URL    string `yaml:"url"`
@@ -135,17 +132,6 @@ func (c *Configuration) validateMetrics() error {
 	// Validate metrics engine
 	if c.Metrics.Engine != "prometheus" && c.Metrics.Engine != "no-op" {
 		return fmt.Errorf("metrics.engine must be 'prometheus' or 'no-op'")
-	}
-
-	// Validate and set defaults for Prometheus configuration
-	if c.Metrics.Engine == "prometheus" {
-		if c.Metrics.Prometheus.PushGatewayURL == "" {
-			return fmt.Errorf("metrics.prometheus.push_gateway_url is required")
-		}
-
-		if c.Metrics.Prometheus.JobName == "" {
-			c.Metrics.Prometheus.JobName = "home_network_monitor"
-		}
 	}
 
 	return nil

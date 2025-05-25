@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -105,4 +106,10 @@ func (i *InfluxDBStorage) StorePingResult(
 func (i *InfluxDBStorage) Close(ctx context.Context) {
 	// Close the InfluxDB client
 	i.client.Close()
+}
+
+func (i *InfluxDBStorage) MetricsHTTPHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotImplemented)
+	})
 }

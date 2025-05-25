@@ -2,21 +2,21 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // PrometheusStorage manages sending metrics to Prometheus
 type PrometheusStorage struct {
-	pusher        *push.Pusher
-	downloadSpeed *prometheus.GaugeVec
-	uploadSpeed   *prometheus.GaugeVec
-	pingLatency   *prometheus.GaugeVec
+	handler       http.Handler
+	downloadSpeed *prometheus.HistogramVec
+	uploadSpeed   *prometheus.HistogramVec
+	pingLatency   *prometheus.HistogramVec
 
 	logger *slog.Logger
 }
@@ -25,35 +25,31 @@ type PrometheusStorage struct {
 var _ MetricsStorage = (*PrometheusStorage)(nil)
 
 // NewPrometheusStorage creates a new Prometheus storage client
-func NewPrometheusStorage(logger *slog.Logger, pushGatewayURL, jobName string) (*PrometheusStorage, error) {
-	if pushGatewayURL == "" {
-		return nil, fmt.Errorf("push gateway URL cannot be empty")
-	}
-
+func NewPrometheusStorage(logger *slog.Logger) (*PrometheusStorage, error) {
 	// Create metrics using promauto
-	downloadSpeed := promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "network_download_speed_mbps",
-		Help: "Network download speed in Mbps",
+	downloadSpeed := promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "network_download_speed_mbps",
+		Help:      "Network download speed in Mbps",
+		Subsystem: "speedtest",
+		Buckets:   prometheus.LinearBuckets(0, 25, 20), // up to 500mbps
 	}, []string{"server"})
 
-	uploadSpeed := promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "network_upload_speed_mbps",
-		Help: "Network upload speed in Mbps",
+	uploadSpeed := promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "network_upload_speed_mbps",
+		Help:      "Network upload speed in Mbps",
+		Subsystem: "speedtest",
+		Buckets:   prometheus.LinearBuckets(0, 25, 20), // up to 500mbps
 	}, []string{"server"})
 
-	pingLatency := promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "network_ping_latency_ms",
-		Help: "Network ping latency in milliseconds",
+	pingLatency := promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "network_latency_ms",
+		Help:      "Network ping latency in milliseconds",
+		Subsystem: "ping",
+		Buckets:   prometheus.ExponentialBucketsRange(2, 4000, 30), // up to 4 seconds
 	}, []string{"server"})
-
-	// Create Prometheus pusher
-	pusher := push.New(pushGatewayURL, jobName).
-		Collector(downloadSpeed).
-		Collector(uploadSpeed).
-		Collector(pingLatency)
 
 	return &PrometheusStorage{
-		pusher:        pusher,
+		handler:       promhttp.Handler(),
 		downloadSpeed: downloadSpeed,
 		uploadSpeed:   uploadSpeed,
 		pingLatency:   pingLatency,
@@ -70,17 +66,9 @@ func (p *PrometheusStorage) StoreNetworkPerformance(
 	serverName string,
 ) error {
 	// Set metric values
-	p.downloadSpeed.WithLabelValues(serverName).Set(downloadSpeedMbps)
-	p.uploadSpeed.WithLabelValues(serverName).Set(uploadSpeedMbps)
-	p.pingLatency.WithLabelValues(serverName).Set(float64(pingMs))
-
-	// Push metrics to Prometheus Push Gateway
-	if err := p.pusher.AddContext(ctx); err != nil {
-		p.logger.ErrorContext(ctx, "Failed to push metrics", "error", err)
-		return fmt.Errorf("failed to push metrics: %v", err)
-	}
-
-	p.logger.InfoContext(ctx, "Successfully sent network performance metrics to Prometheus", "server", serverName)
+	p.downloadSpeed.WithLabelValues(serverName).Observe(downloadSpeedMbps)
+	p.uploadSpeed.WithLabelValues(serverName).Observe(uploadSpeedMbps)
+	p.pingLatency.WithLabelValues(serverName).Observe(float64(pingMs))
 	return nil
 }
 
@@ -91,22 +79,12 @@ func (p *PrometheusStorage) StorePingResult(
 	serverName string,
 ) error {
 	// Set metric values with server label
-	p.pingLatency.WithLabelValues(serverName).Set(float64(pingMs))
-
-	// Push metrics to Prometheus Push Gateway
-	if err := p.pusher.AddContext(ctx); err != nil {
-		p.logger.ErrorContext(ctx, "Failed to push metrics", "error", err)
-		return fmt.Errorf("failed to push metrics: %v", err)
-	}
-
-	p.logger.InfoContext(ctx, "Successfully sent ping result to Prometheus", "server", serverName)
+	p.pingLatency.WithLabelValues(serverName).Observe(float64(pingMs))
 	return nil
+}
+func (p *PrometheusStorage) MetricsHTTPHandler() http.Handler {
+	return p.handler
 }
 
 // Close terminates the Prometheus storage connection
-func (p *PrometheusStorage) Close(ctx context.Context) {
-	// Optional: Final push before closing
-	if err := p.pusher.AddContext(ctx); err != nil {
-		p.logger.ErrorContext(ctx, "Error during final metrics push", "error", err)
-	}
-}
+func (p *PrometheusStorage) Close(ctx context.Context) {}

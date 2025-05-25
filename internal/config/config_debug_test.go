@@ -54,9 +54,6 @@ func TestConfigPage_ServeHTTP(t *testing.T) {
 		Metrics: struct {
 			Engine     string `yaml:"engine"`
 			Prometheus struct {
-				PushGatewayURL string `yaml:"push_gateway_url"`
-				JobName        string `yaml:"job_name"`
-				InstanceName   string `yaml:"instance_name"`
 			} `yaml:"prometheus"`
 			InfluxDB struct {
 				URL    string `yaml:"url"`
@@ -66,16 +63,6 @@ func TestConfigPage_ServeHTTP(t *testing.T) {
 			} `yaml:"influxdb"`
 		}{
 			Engine: "prometheus",
-			Prometheus: struct {
-				PushGatewayURL string `yaml:"push_gateway_url"`
-				JobName        string `yaml:"job_name"`
-				InstanceName   string `yaml:"instance_name"`
-			}{
-				PushGatewayURL: "http://localhost:9091",
-				JobName:        "yanm",
-				// InstanceName can be omitted if it's optional or has a default
-			},
-			// InfluxDB can be omitted if not used for this test or has defaults
 		},
 		Logging: logger.Config{
 			Level:  "info",

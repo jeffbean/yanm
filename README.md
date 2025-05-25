@@ -1,6 +1,5 @@
 # Home Network Internet Monitor
 
-## Overview
 A comprehensive Golang-based system for monitoring home network internet health and performance, designed to run on a Raspberry Pi.
 
 ## Features
@@ -9,13 +8,15 @@ A comprehensive Golang-based system for monitoring home network internet health 
 - 📈 Historical Data Storage
 - 🌐 Grafana Dashboard Integration
 
-## Hardware Requirements
+## Requirements
+
+### Hardware
 - Raspberry Pi (3B+ or 4 recommended)
 - Stable Internet Connection
 - Optional: External Storage for Long-Term Data
 
-## Software Dependencies
-- Golang 1.16+
+### Software
+- Golang 1.24+
 - Prometheus Client SDK
 - Prometheus Push Gateway
 - Grafana Cloud
@@ -33,27 +34,58 @@ yanm/
 ```
 
 ## Quick Start
-1. Clone the repository
-2. Configure `config.yml`
-3. Set environment variables
-4. Build and run
+
+### Using GitHub Actions Build (Recommended)
+
+1. Download the latest release tarball from the [Releases](https://github.com/jeffbean/yanm/releases) page
+2. Extract the tarball:
+```bash
+tar -xzf yanm-binary.tar.gz
+```
+3. Copy the files to your Raspberry Pi:
+```bash
+scp yanm config.yml pi@raspberrypi:/opt/yanm/
+scp yanm.service pi@raspberrypi:/etc/systemd/system/
+```
+4. Enable and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable yanm
+sudo systemctl start yanm
+```
+5. Check service status:
+```bash
+sudo systemctl status yanm
+```
+6. View logs:
+```bash
+journalctl -u yanm -f
+```
+
+### Using Docker (Development)
 
 ```bash
-# Set Prometheus Push Gateway configuration
-export PROMETHEUS_PUSH_GATEWAY_URL=https://your-grafana-cloud-push-gateway.com/metrics
-export PROMETHEUS_JOB_NAME=home_network_monitor
+# Build the Docker image
+docker build -t yanm-monitor .
 
+# Run the container with required environment variables
+docker run -d \
+    -p 8090:8090 \
+    yanm-monitor
+
+# View container logs
+docker logs yanm-monitor
+```
+
+### Building from Source (Development)
+
+```bash
 # Build the application
 go build -o network-monitor cmd/main.go
 
 # Run the monitor
 ./network-monitor
 ```
-
-## Configuration
-Configure your monitoring by setting these environment variables:
-- `PROMETHEUS_PUSH_GATEWAY_URL`: URL of your Grafana Cloud Prometheus Push Gateway
-- `PROMETHEUS_JOB_NAME`: Optional job name for metrics (default: home_network_monitor)
 
 ### Grafana Cloud Setup
 1. Create a Grafana Cloud account
@@ -66,11 +98,13 @@ Configure your monitoring by setting these environment variables:
 - Ping Latency (ms)
 - Server Information
 
-## Grafana Dashboard
-A pre-configured Grafana dashboard is available to visualize your network performance over time.
-
 ## Contributing
 Contributions are welcome! Please read our contributing guidelines before submitting a pull request.
 
 ## License
-[Specify your license]
+
+MIT License
+
+## Support
+
+For support, please open an issue on GitHub or contact the maintainers.

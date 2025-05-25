@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM golang:1.22-alpine AS builder
+FROM golang:1-alpine AS builder
 
 WORKDIR /app
 
@@ -28,6 +28,7 @@ COPY config.yml .
 
 # Expose any necessary ports if your application is a server (optional)
 # For example: EXPOSE 8080
+EXPOSE 8090
 
 # Command to run the application
 # The application will look for config.yml in the current working directory

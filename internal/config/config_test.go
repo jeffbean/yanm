@@ -81,9 +81,6 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 				Metrics: struct {
 					Engine     string `yaml:"engine"`
 					Prometheus struct {
-						PushGatewayURL string `yaml:"push_gateway_url"`
-						JobName        string `yaml:"job_name"`
-						InstanceName   string `yaml:"instance_name"`
 					} `yaml:"prometheus"`
 					InfluxDB struct {
 						URL    string `yaml:"url"`
@@ -152,9 +149,6 @@ metrics:
 				Metrics: struct {
 					Engine     string `yaml:"engine"`
 					Prometheus struct {
-						PushGatewayURL string `yaml:"push_gateway_url"`
-						JobName        string `yaml:"job_name"`
-						InstanceName   string `yaml:"instance_name"`
 					} `yaml:"prometheus"`
 					InfluxDB struct {
 						URL    string `yaml:"url"`
@@ -164,14 +158,6 @@ metrics:
 					} `yaml:"influxdb"`
 				}{
 					Engine: "prometheus",
-					Prometheus: struct {
-						PushGatewayURL string `yaml:"push_gateway_url"`
-						JobName        string `yaml:"job_name"`
-						InstanceName   string `yaml:"instance_name"`
-					}{
-						PushGatewayURL: "http://localhost:9091",
-						JobName:        "test_job",
-					},
 				},
 				Network: struct {
 					PingTest struct {

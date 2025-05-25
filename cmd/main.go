@@ -52,11 +52,7 @@ func run() error {
 	var dataStorage storage.MetricsStorage
 	switch cfg.Metrics.Engine {
 	case "prometheus":
-		dataStorage, err = storage.NewPrometheusStorage(
-			logger,
-			cfg.Metrics.Prometheus.PushGatewayURL,
-			cfg.Metrics.Prometheus.JobName,
-		)
+		dataStorage, err = storage.NewPrometheusStorage(logger)
 	case "influxdb":
 		dataStorage, err = storage.NewInfluxDBStorage(
 			logger,
@@ -109,6 +105,15 @@ func run() error {
 
 	debugSrv, err := setupDebugServer(cfg.DebugServer.ListenAddress, logger, routes)
 	if err != nil {
+		return err
+	}
+
+	if err := debugSrv.RegisterPage(debughttp.DebugRoute{
+		Path:        "/metrics",
+		Name:        "Metrics",
+		Description: "Displays metrics data.",
+		Handler:     dataStorage.MetricsHTTPHandler(),
+	}); err != nil {
 		return err
 	}
 

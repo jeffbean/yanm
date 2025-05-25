@@ -6,6 +6,7 @@ package storagemock
 
 import (
 	context "context"
+	http "net/http"
 	reflect "reflect"
 	time "time"
 
@@ -45,6 +46,20 @@ func (m *MockMetricsStorage) Close(ctx context.Context) {
 func (mr *MockMetricsStorageMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockMetricsStorage)(nil).Close), ctx)
+}
+
+// MetricsHTTPHandler mocks base method.
+func (m *MockMetricsStorage) MetricsHTTPHandler() http.Handler {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MetricsHTTPHandler")
+	ret0, _ := ret[0].(http.Handler)
+	return ret0
+}
+
+// MetricsHTTPHandler indicates an expected call of MetricsHTTPHandler.
+func (mr *MockMetricsStorageMockRecorder) MetricsHTTPHandler() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MetricsHTTPHandler", reflect.TypeOf((*MockMetricsStorage)(nil).MetricsHTTPHandler))
 }
 
 // StoreNetworkPerformance mocks base method.

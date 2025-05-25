@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 )
 
@@ -54,4 +55,10 @@ func (n *NoOpStorage) StorePingResult(
 // Close does nothing
 func (n *NoOpStorage) Close(ctx context.Context) {
 	// No-op
+}
+
+func (n *NoOpStorage) MetricsHTTPHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotImplemented)
+	})
 }

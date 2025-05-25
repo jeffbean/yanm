@@ -5,10 +5,8 @@ network:
       max_ping_timeout: 500ms
       max_servers_to_test: 3
 
-prometheus:
-  push_gateway_url: ${PROMETHEUS_PUSH_GATEWAY_URL}
-  job_name: home_network_monitor
-  instance_name: ${HOSTNAME}
+metrics:
+  engine: prometheus
 
 logging:
   level: info
