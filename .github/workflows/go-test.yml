@@ -18,10 +18,6 @@ jobs:
       with:
         go-version: '1.24'
 
-    - name: install golangci-lint
-      run: |
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-
     - name: Install Dependencies
       run: |
         go mod download
@@ -42,6 +38,7 @@ jobs:
 
     - name: Run golangci-lint
       run: |
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
         golangci-lint run --default=none \
         -E errcheck \
         -E govet \

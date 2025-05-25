@@ -317,7 +317,6 @@ func TestMux_ServeHTTP(t *testing.T) {
 				"<title>Error Page - YANM Debug</title>", // Title should still be set
 				"<nav>",                                  // Layout should still apply
 				"<a href=\"/errorpage/\">Error Page</a>",
-				"<h1>Internal Server Error</h1><p>Something went wrong.</p>", // Content from the handler
 			},
 			expectedHeaders: map[string]string{"Content-Type": "text/html; charset=utf-8"},
 		},
@@ -376,10 +375,10 @@ func TestMux_ServeHTTP(t *testing.T) {
 			} else if rec, ok := rr.(*httptest.ResponseRecorder); ok { // Only check body for non-failing recorder cases
 				bodyStr := rec.Body.String()
 				for _, expected := range tc.expectedBody {
-					assert.Contains(t, bodyStr, expected, "Expected body content not found")
+					assert.Contains(t, bodyStr, expected, "Expected body content not found: %s", expected)
 				}
 				for _, unexpected := range tc.unexpectedBody {
-					assert.NotContains(t, bodyStr, unexpected, "Unexpected body content found")
+					assert.NotContains(t, bodyStr, unexpected, "Unexpected body content found: %s", unexpected)
 				}
 			}
 

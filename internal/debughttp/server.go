@@ -246,11 +246,9 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	layoutPageData := debughandler.Page{
-		Title:    pageCtxData.Title,
-		NavLinks: pageCtxData.NavLinks,
-		ContentBody: htmltemplate.HTML(
-			htmltemplate.HTMLEscapeString(contentBuf.String()),
-		),
+		Title:       pageCtxData.Title,
+		NavLinks:    pageCtxData.NavLinks,
+		ContentBody: htmltemplate.HTML(contentBuf.String()),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -104,7 +104,7 @@ func NewHTMLProducingHandler(source http.Handler) http.Handler {
 		if err := ExecuteLayout(buf, Page{
 			Title:       pageTitle,
 			NavLinks:    navLinks,
-			ContentBody: template.HTML(template.HTMLEscapeString(recorder.Body.String())),
+			ContentBody: template.HTML(recorder.Body.String()),
 		}); err != nil {
 			// should be an invariant violation.
 			w.WriteHeader(http.StatusInternalServerError)
