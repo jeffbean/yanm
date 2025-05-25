@@ -26,7 +26,7 @@ func NewNoOpStorage(logger *slog.Logger) *NoOpStorage {
 // StoreNetworkPerformance does nothing and always returns nil
 func (n *NoOpStorage) StoreNetworkPerformance(
 	ctx context.Context,
-	timestamp time.Time,
+	_ time.Time,
 	downloadSpeedMbps, uploadSpeedMbps float64,
 	ping int64,
 	serverName string,
@@ -42,7 +42,7 @@ func (n *NoOpStorage) StoreNetworkPerformance(
 // StorePingResult does nothing and always returns nil
 func (n *NoOpStorage) StorePingResult(
 	ctx context.Context,
-	timestamp time.Time,
+	_ time.Time,
 	pingMs int64,
 	serverName string,
 ) error {
@@ -53,7 +53,7 @@ func (n *NoOpStorage) StorePingResult(
 }
 
 // Close does nothing
-func (n *NoOpStorage) Close(ctx context.Context) {
+func (n *NoOpStorage) Close(_ context.Context) {
 	// No-op
 }
 

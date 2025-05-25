@@ -3,6 +3,7 @@ package debughttp
 import (
 	"bytes" // Added for buffer
 	"context"
+	"embed"
 	_ "embed"
 	"errors" // For ErrPathAlreadyRegistered
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"strings"
 	"sync" // Aliased for clarity
 	"yanm/internal/debughttp/debughandler"
-	"embed"
 )
 
 // NavVisibility determines if a debug route should be visible in navigation links.
@@ -167,17 +167,21 @@ func NewServer(cfg Config, logger *slog.Logger) (*Server, error) {
 		return nil, err
 	}
 
-	mux.Handle(DebugRoute{
+	if err := mux.Handle(DebugRoute{
 		Path:       "/debug/static/",
 		Handler:    http.StripPrefix("/debug/static/", http.FileServer(http.FS(staticSubFS))),
 		Visibility: NavExclude, // Exclude static assets from nav links
-	})
+	}); err != nil {
+		return nil, err
+	}
 
-	mux.Handle(DebugRoute{
+	if err := mux.Handle(DebugRoute{
 		Path:    "/",
 		Name:    "Home",
 		Handler: http.HandlerFunc(server.handleRoot),
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	return &server, nil
 }
@@ -242,9 +246,11 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	layoutPageData := debughandler.Page{
-		Title:       pageCtxData.Title,
-		NavLinks:    pageCtxData.NavLinks,
-		ContentBody: htmltemplate.HTML(contentBuf.String()),
+		Title:    pageCtxData.Title,
+		NavLinks: pageCtxData.NavLinks,
+		ContentBody: htmltemplate.HTML(
+			htmltemplate.HTMLEscapeString(contentBuf.String()),
+		),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -55,7 +55,8 @@ func TestLoadFile_ErrorConditions(t *testing.T) {
 			if tc.pathArgument == "USE_TEMP_FILE" {
 				tempDir := t.TempDir()
 				pathToLoad = filepath.Join(tempDir, "config.yml")
-				os.WriteFile(pathToLoad, []byte(tc.configContent), 0644)
+				err := os.WriteFile(pathToLoad, []byte(tc.configContent), 0644)
+				require.NoError(t, err)
 			}
 
 			_, err := LoadFile(pathToLoad)

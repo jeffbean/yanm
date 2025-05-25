@@ -104,11 +104,11 @@ func NewHTMLProducingHandler(source http.Handler) http.Handler {
 		if err := ExecuteLayout(buf, Page{
 			Title:       pageTitle,
 			NavLinks:    navLinks,
-			ContentBody: template.HTML(recorder.Body.String()),
+			ContentBody: template.HTML(template.HTMLEscapeString(recorder.Body.String())),
 		}); err != nil {
 			// should be an invariant violation.
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Failed to execute layout template"))
+			_, _ = w.Write([]byte("Failed to execute layout template"))
 			return
 		}
 
@@ -118,6 +118,6 @@ func NewHTMLProducingHandler(source http.Handler) http.Handler {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8") // always expect HTML.
 
 		w.WriteHeader(recorder.Code)
-		buf.WriteTo(w)
+		_, _ = buf.WriteTo(w)
 	})
 }

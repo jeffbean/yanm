@@ -59,7 +59,7 @@ type page struct {
 	s *SpeedTestClient
 }
 
-func (p *page) getPageData() ([]*PingResult, []*NetworkPerformance) {
+func (p *page) getPageData() ([]*PingResult, []*Performance) {
 	p.s.mu.RLock()
 	defer p.s.mu.RUnlock()
 
@@ -69,9 +69,9 @@ func (p *page) getPageData() ([]*PingResult, []*NetworkPerformance) {
 		copy(pings, p.s.lastPingResults)
 	}
 
-	var networkTests []*NetworkPerformance
+	var networkTests []*Performance
 	if len(p.s.lastNetworkResults) > 0 {
-		networkTests = make([]*NetworkPerformance, len(p.s.lastNetworkResults))
+		networkTests = make([]*Performance, len(p.s.lastNetworkResults))
 		copy(networkTests, p.s.lastNetworkResults)
 	}
 
@@ -82,7 +82,7 @@ func (p *page) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pings, networkTests := p.getPageData()
 	if err := _tempTmpl.Execute(w, struct {
 		Pings        []*PingResult
-		NetworkTests []*NetworkPerformance
+		NetworkTests []*Performance
 		PingCount    int
 		NetworkCount int
 		MaxHistory   int

@@ -66,10 +66,10 @@ func (mr *MockSpeedTesterMockRecorder) PerformPingTest(ctx interface{}) *gomock.
 }
 
 // PerformSpeedTest mocks base method.
-func (m *MockSpeedTester) PerformSpeedTest(ctx context.Context) (*network.NetworkPerformance, error) {
+func (m *MockSpeedTester) PerformSpeedTest(ctx context.Context) (*network.Performance, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PerformSpeedTest", ctx)
-	ret0, _ := ret[0].(*network.NetworkPerformance)
+	ret0, _ := ret[0].(*network.Performance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

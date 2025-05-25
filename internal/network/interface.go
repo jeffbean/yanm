@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-// NetworkPerformance represents the results of a network speed test
+// Performance represents the results of a network speed test
 //
 //go:generate mockgen -source interface.go -destination networkmock/storage_mock.go -package networkmock
-type NetworkPerformance struct {
+type Performance struct {
 	TargetName        string
 	Timestamp         time.Time
 	DownloadSpeedMbps float64
@@ -27,7 +27,7 @@ type PingResult struct {
 // SpeedTester defines the interface for performing network speed tests
 type SpeedTester interface {
 	// PerformSpeedTest runs a network speed test and returns performance metrics
-	PerformSpeedTest(ctx context.Context) (*NetworkPerformance, error)
+	PerformSpeedTest(ctx context.Context) (*Performance, error)
 
 	// PerformPingTest runs a network ping and returns the latency in milliseconds.
 	PerformPingTest(ctx context.Context) (*PingResult, error)

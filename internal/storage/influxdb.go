@@ -103,7 +103,7 @@ func (i *InfluxDBStorage) StorePingResult(
 }
 
 // Close terminates the InfluxDB storage connection
-func (i *InfluxDBStorage) Close(ctx context.Context) {
+func (i *InfluxDBStorage) Close(_ context.Context) {
 	// Close the InfluxDB client
 	i.client.Close()
 }

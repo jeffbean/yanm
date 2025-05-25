@@ -65,7 +65,10 @@ func (p *monitorPage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				PingLimiter:    p.monitor.pingLimiter.Status(),
 				NetworkLimiter: p.monitor.networkLimiter.Status(),
 			}
-			json.NewEncoder(w).Encode(state)
+			if err := json.NewEncoder(w).Encode(state); err != nil {
+				http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+				return
+			}
 		}
 
 	case http.MethodPost:

@@ -19,7 +19,7 @@ type SpeedTestClient struct {
 	logger *slog.Logger
 
 	mu                 sync.RWMutex
-	lastNetworkResults []*NetworkPerformance
+	lastNetworkResults []*Performance
 	lastPingResults    []*PingResult
 
 	// testing fields
@@ -41,7 +41,7 @@ func NewSpeedTestClient(logger *slog.Logger) *SpeedTestClient {
 }
 
 // PerformSpeedTest conducts a network speed test
-func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerformance, error) {
+func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*Performance, error) {
 	serverList, err := s.st.FetchServerListContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch server list: %v", err)
@@ -66,7 +66,7 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 		return nil, fmt.Errorf("failed to perform tests: %v", err)
 	}
 
-	performance := &NetworkPerformance{
+	performance := &Performance{
 		TargetName:        target.Name,
 		Timestamp:         s.clock.Now(),
 		DownloadSpeedMbps: float64(target.DLSpeed.Mbps()),
@@ -74,7 +74,7 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*NetworkPerform
 		PingLatency:       target.Latency,
 	}
 
-	s.lastNetworkResults = append([]*NetworkPerformance{performance}, s.lastNetworkResults...)
+	s.lastNetworkResults = append([]*Performance{performance}, s.lastNetworkResults...)
 	if len(s.lastNetworkResults) > maxHistory {
 		s.lastNetworkResults = s.lastNetworkResults[:maxHistory]
 	}

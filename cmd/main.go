@@ -120,7 +120,11 @@ func run() error {
 	if cfg.DebugServer.Enabled { // setupDebugServer can return nil if disabled
 		logger.Info("Starting debug server", "address", cfg.DebugServer.ListenAddress)
 		debugSrv.Start(ctx)
-		defer debugSrv.Stop(ctx)
+		defer func() {
+			if err := debugSrv.Stop(ctx); err != nil {
+				logger.Error("Failed to stop debug server", "error", err)
+			}
+		}()
 	} else {
 		logger.Info("Debug server is not enabled, skipping start.")
 	}

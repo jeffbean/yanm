@@ -9,9 +9,10 @@ import (
 	"os"
 	"testing"
 
+	"yanm/internal/debughttp/debughandler"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"yanm/internal/debughttp/debughandler"
 )
 
 func TestNewServer(t *testing.T) {
@@ -28,15 +29,17 @@ func TestNewServer(t *testing.T) {
 func TestServer_RegisterPage(t *testing.T) {
 	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test content"))
+
+		_, err := w.Write([]byte("test content"))
+		require.NoError(t, err, "Write() returned an unexpected error: %v", err)
 	})
 
 	testCases := []struct {
-		name        string
-		route       DebugRoute
-		expectError bool
-		errorMsg    string // Substring to check in error message if expectError is true
-		checkRoute  bool   // Whether to check if the route was added to mux.routes
+		name         string
+		route        DebugRoute
+		expectError  bool
+		errorMsg     string // Substring to check in error message if expectError is true
+		checkRoute   bool   // Whether to check if the route was added to mux.routes
 		expectedPath string // Expected path after normalization (if checkRoute is true)
 		expectedName string // Expected name after defaulting (if checkRoute is true)
 	}{
@@ -47,8 +50,8 @@ func TestServer_RegisterPage(t *testing.T) {
 				Path:    "/testpage",
 				Handler: baseHandler,
 			},
-			expectError: false,
-			checkRoute:  true,
+			expectError:  false,
+			checkRoute:   true,
 			expectedPath: "/testpage/",
 			expectedName: "Test Page",
 		},
@@ -92,8 +95,8 @@ func TestServer_RegisterPage(t *testing.T) {
 				Path:    "/needsslash", // No trailing slash
 				Handler: baseHandler,
 			},
-			expectError: false,
-			checkRoute:  true,
+			expectError:  false,
+			checkRoute:   true,
 			expectedPath: "/needsslash/", // Slash should be added
 			expectedName: "Needs Slash",
 		},
@@ -104,8 +107,8 @@ func TestServer_RegisterPage(t *testing.T) {
 				Path:    "/hasslash/", // Already has trailing slash
 				Handler: baseHandler,
 			},
-			expectError: false,
-			checkRoute:  true,
+			expectError:  false,
+			checkRoute:   true,
 			expectedPath: "/hasslash/",
 			expectedName: "Has Slash",
 		},
@@ -116,8 +119,8 @@ func TestServer_RegisterPage(t *testing.T) {
 				Path:    "/emptyname",
 				Handler: baseHandler,
 			},
-			expectError: false,
-			checkRoute:  true,
+			expectError:  false,
+			checkRoute:   true,
 			expectedPath: "/emptyname/",
 			expectedName: "/emptyname/", // Name should default to path (after path normalization)
 		},
@@ -162,7 +165,8 @@ func TestServer_RegisterPage(t *testing.T) {
 func TestServer_RegisterPage_DuplicateError(t *testing.T) {
 	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test content"))
+		_, err := w.Write([]byte("test content"))
+		require.NoError(t, err, "Write() returned an unexpected error: %v", err)
 	})
 	cfg := Config{ListenAddress: ":0"}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -225,9 +229,9 @@ func TestMux_ServeHTTP(t *testing.T) {
 			reqPath:            "/basic/",
 			expectedStatusCode: http.StatusOK,
 			// For a plain http.HandlerFunc, no layout is applied, no title injected, no nav.
-			expectedBody:       []string{"<p>Hello from basic handler</p>"},
-			expectedHeaders:    map[string]string{"Content-Type": "text/html; charset=utf-8"},
-			unexpectedBody:     []string{"<html>", "<title>Basic</title>", "<nav>"},
+			expectedBody:    []string{"<p>Hello from basic handler</p>"},
+			expectedHeaders: map[string]string{"Content-Type": "text/html; charset=utf-8"},
+			unexpectedBody:  []string{"<html>", "<title>Basic</title>", "<nav>"},
 		},
 		{
 			name: "HTMLProducingHandler with layout",
@@ -261,8 +265,8 @@ func TestMux_ServeHTTP(t *testing.T) {
 			},
 			reqPath:            "/this-path-does-not-exist",
 			expectedStatusCode: http.StatusNotFound,
-			expectedBody:       []string{"404 page not found"}, // Default http.ServeMux message
-			unexpectedBody:     []string{"<html>", "<nav>", "YANM Debug"},      // Layout should not be applied
+			expectedBody:       []string{"404 page not found"},                                 // Default http.ServeMux message
+			unexpectedBody:     []string{"<html>", "<nav>", "YANM Debug"},                      // Layout should not be applied
 			expectedHeaders:    map[string]string{"Content-Type": "text/plain; charset=utf-8"}, // Default Go 404 content type
 		},
 		{
@@ -289,9 +293,9 @@ func TestMux_ServeHTTP(t *testing.T) {
 				"<html lang=\"en\">",
 				"<title>Debug Home - YANM Debug</title>", // Specific title for root
 				"<nav>",
-				"<a href=\"/\">Debug Home</a>",          // Nav link to Home
-				"<a href=\"/other/\">Other Page</a>",    // Nav link to Other
-				"<h2>Welcome to Debug Home</h2>",       // Actual content from root handler
+				"<a href=\"/\">Debug Home</a>",       // Nav link to Home
+				"<a href=\"/other/\">Other Page</a>", // Nav link to Other
+				"<h2>Welcome to Debug Home</h2>",     // Actual content from root handler
 			},
 			expectedHeaders: map[string]string{"Content-Type": "text/html; charset=utf-8"},
 		},
@@ -311,7 +315,7 @@ func TestMux_ServeHTTP(t *testing.T) {
 			expectedBody: []string{
 				"<html lang=\"en\">",
 				"<title>Error Page - YANM Debug</title>", // Title should still be set
-				"<nav>", // Layout should still apply
+				"<nav>",                                  // Layout should still apply
 				"<a href=\"/errorpage/\">Error Page</a>",
 				"<h1>Internal Server Error</h1><p>Something went wrong.</p>", // Content from the handler
 			},

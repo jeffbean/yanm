@@ -59,8 +59,8 @@ func NewPrometheusStorage(logger *slog.Logger) (*PrometheusStorage, error) {
 
 // StoreNetworkPerformance sends network performance metrics to Prometheus
 func (p *PrometheusStorage) StoreNetworkPerformance(
-	ctx context.Context,
-	timestamp time.Time,
+	_ context.Context,
+	_ time.Time,
 	downloadSpeedMbps, uploadSpeedMbps float64,
 	pingMs int64,
 	serverName string,
@@ -73,8 +73,8 @@ func (p *PrometheusStorage) StoreNetworkPerformance(
 }
 
 func (p *PrometheusStorage) StorePingResult(
-	ctx context.Context,
-	timestamp time.Time,
+	_ context.Context,
+	_ time.Time,
 	pingMs int64,
 	serverName string,
 ) error {
@@ -87,4 +87,4 @@ func (p *PrometheusStorage) MetricsHTTPHandler() http.Handler {
 }
 
 // Close terminates the Prometheus storage connection
-func (p *PrometheusStorage) Close(ctx context.Context) {}
+func (p *PrometheusStorage) Close(_ context.Context) {}
