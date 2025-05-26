@@ -35,62 +35,50 @@ yanm/
 
 ## Quick Start
 
-### Using GitHub Actions Build (Recommended)
-
-1. Download the latest release tarball from the [Releases](https://github.com/jeffbean/yanm/releases) page
-2. Extract the tarball:
-```bash
-tar -xzf yanm-binary.tar.gz
-```
-3. Copy the files to your Raspberry Pi:
-```bash
-scp yanm config.yml pi@raspberrypi:/opt/yanm/
-scp yanm.service pi@raspberrypi:/etc/systemd/system/
-```
-4. Enable and start the service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable yanm
-sudo systemctl start yanm
-```
-5. Check service status:
-```bash
-sudo systemctl status yanm
-```
-6. View logs:
-```bash
-journalctl -u yanm -f
-```
-
-### Using Docker (Development)
-
-```bash
-# Build the Docker image
-docker build -t yanm-monitor .
-
-# Run the container with required environment variables
-docker run -d \
-    -p 8090:8090 \
-    yanm-monitor
-
-# View container logs
-docker logs yanm-monitor
-```
-
-### Building from Source (Development)
-
 ```bash
 # Build the application
-go build -o network-monitor cmd/main.go
+go build -o yanm cmd/main.go
 
-# Run the monitor
-./network-monitor
+# Run with default configuration
+./yanm -config config.yml
+
+# Or specify a custom config file
+./yanm -config /path/to/config.yml
 ```
 
-### Grafana Cloud Setup
-1. Create a Grafana Cloud account
-2. Get your Prometheus Push Gateway URL
-3. Configure your dashboard to ingest metrics
+## Configuration
+
+The application uses a YAML configuration file. By default, it looks for `config.yml` in the current directory, but you can specify a different location using the `-config` flag.
+
+You can view the current configuration by accessing the debug server at `http://localhost:8090/config/` (when debug server is enabled).
+
+
+## Deployment Options
+
+### Using Ansible
+We provide an Ansible playbook for automated deployment:
+
+```bash
+# Install Ansible
+sudo apt-get install ansible
+
+# Run the playbook
+ansible-playbook --connection=local 127.0.0.1 deploy.yml
+```
+
+The playbook will:
+- Clone the repository
+- Build the application
+- Set up systemd service
+- Configure logging
+- Start the service
+
+### Manual Installation
+1. Clone the repository
+2. Build the application
+3. Set up systemd service (example provided in README)
+4. Configure logging
+5. Start the service
 
 ## Monitoring Metrics
 - Download Speed (Mbps)

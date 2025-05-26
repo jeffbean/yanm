@@ -13,7 +13,7 @@ import (
 
 	"yanm/internal/config"
 	"yanm/internal/debughttp"
-	"yanm/internal/debughttp/debughandler" // Added for debug page handlers
+	"yanm/internal/debughttp/debughandler"
 	"yanm/internal/logger"
 	"yanm/internal/monitor"
 	"yanm/internal/network"

@@ -1,6 +1,7 @@
 network:
   speedtest:
-    interval_minutes: 1
+    # Run every 12 hours
+    interval_minutes: 720
     servers:
       max_ping_timeout: 500ms
       max_servers_to_test: 3
@@ -9,9 +10,9 @@ metrics:
   engine: prometheus
 
 logging:
-  level: info
-  output_file: /var/log/yanm.log
+  level: info 
+  output_file: /var/log/yanm/yanm.log
 
 debug_server:
   enabled: true
-  listen_address: :8090
+  listen_address: 127.0.0.1:8090

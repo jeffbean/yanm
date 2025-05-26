@@ -123,9 +123,8 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 					},
 				},
 				Logging: logger.Config{
-					Level:      "info",
-					Format:     "json",
-					OutputFile: "/var/log/yanm.log",
+					Level:  "info",
+					Format: "json",
 				},
 				DebugServer: struct {
 					Enabled       bool   `yaml:"enabled"`
@@ -188,9 +187,8 @@ metrics:
 					},
 				},
 				Logging: logger.Config{
-					Level:      "info",
-					Format:     "json",
-					OutputFile: "/var/log/yanm.log",
+					Level:  "info",
+					Format: "json",
 				},
 				DebugServer: struct {
 					Enabled       bool   `yaml:"enabled"`

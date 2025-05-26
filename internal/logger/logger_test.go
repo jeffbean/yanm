@@ -15,83 +15,66 @@ func TestNew(t *testing.T) {
 		{
 			name: "valid level info, json format",
 			cfg: Config{
-				Level:      "info",
-				Format:     "json",
-				OutputFile: "stdout",
+				Level:  "info",
+				Format: "json",
 			},
 		},
 		{
 			name: "valid level debug, text format",
 			cfg: Config{
-				Level:      "debug",
-				Format:     "text",
-				OutputFile: "stdout",
+				Level:  "debug",
+				Format: "text",
 			},
 		},
 		{
 			name: "valid level warn, json format",
 			cfg: Config{
-				Level:      "warn",
-				Format:     "json",
-				OutputFile: "stdout",
+				Level:  "warn",
+				Format: "json",
 			},
 		},
 		{
 			name: "valid level error, text format",
 			cfg: Config{
-				Level:      "error",
-				Format:     "text",
-				OutputFile: "stdout",
+				Level:  "error",
+				Format: "text",
 			},
 		},
 		{
 			name: "invalid level string",
 			cfg: Config{
-				Level:      "invalid_level_string",
-				Format:     "json",
-				OutputFile: "stdout",
+				Level:  "invalid_level_string",
+				Format: "json",
 			},
 			expectError: "slog: level string \"invalid_level_string\": unknown name",
 		},
 		{
 			name: "empty level string (expect error)",
 			cfg: Config{
-				Level:      "", // slog.LevelVar.UnmarshalText returns error for empty string
-				Format:     "json",
-				OutputFile: "stdout",
+				Level:  "", // slog.LevelVar.UnmarshalText returns error for empty string
+				Format: "json",
 			},
 			expectError: "slog: level string \"\": unknown name",
 		},
 		{
 			name: "empty format (defaults to json)",
 			cfg: Config{
-				Level:      "info",
-				Format:     "", // Should default to JSON
-				OutputFile: "stdout",
+				Level:  "info",
+				Format: "", // Should default to JSON
 			},
 		},
 		{
 			name: "output file stderr (current code uses stdout)",
 			cfg: Config{
-				Level:      "info",
-				Format:     "json",
-				OutputFile: "stderr",
+				Level:  "info",
+				Format: "json",
 			},
 		},
 		{
 			name: "output file to a specific file (current code uses stdout)",
 			cfg: Config{
-				Level:      "info",
-				Format:     "text",
-				OutputFile: "test.log",
-			},
-		},
-		{
-			name: "unspecified output file (current code uses stdout)",
-			cfg: Config{
 				Level:  "info",
-				Format: "json",
-				// OutputFile: "", // implicit
+				Format: "text",
 			},
 		},
 	}

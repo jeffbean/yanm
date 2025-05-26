@@ -98,10 +98,6 @@ func (c *Configuration) validate() error {
 		c.Logging.Format = "json"
 	}
 
-	if c.Logging.OutputFile == "" {
-		c.Logging.OutputFile = "/var/log/yanm.log"
-	}
-
 	// Set default debug server configuration
 	if c.DebugServer.ListenAddress == "" {
 		c.DebugServer.ListenAddress = ":8090" // Default debug server address
