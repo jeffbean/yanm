@@ -90,7 +90,7 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 						Bucket string `yaml:"bucket"`
 					} `yaml:"influxdb"`
 				}{
-					Engine: "no-op",
+					Engine: "prometheus",
 				},
 				Network: struct {
 					PingTest struct {
@@ -109,7 +109,7 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					}{
-						IntervalSeconds:  15,
+						IntervalSeconds:  2,
 						ThresholdSeconds: 5.0,
 					},
 					SpeedTest: struct {
@@ -119,7 +119,7 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 							MaxServersToTest int    `yaml:"max_servers_to_test"`
 						} `yaml:"servers"`
 					}{
-						IntervalMinutes: 1,
+						IntervalMinutes: 720,
 					},
 				},
 				Logging: logger.Config{
@@ -131,7 +131,7 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 					ListenAddress string `yaml:"listen_address"`
 				}{
 					Disabled:      false,
-					ListenAddress: ":8090",
+					ListenAddress: "127.0.0.1:8090",
 				},
 			},
 		},
@@ -173,7 +173,7 @@ metrics:
 						IntervalSeconds  int     `yaml:"interval_seconds"`
 						ThresholdSeconds float64 `yaml:"threshold_seconds"`
 					}{
-						IntervalSeconds:  15,
+						IntervalSeconds:  2,
 						ThresholdSeconds: 5.0,
 					},
 					SpeedTest: struct {
@@ -183,7 +183,7 @@ metrics:
 							MaxServersToTest int    `yaml:"max_servers_to_test"`
 						} `yaml:"servers"`
 					}{
-						IntervalMinutes: 1,
+						IntervalMinutes: 720,
 					},
 				},
 				Logging: logger.Config{
@@ -195,7 +195,7 @@ metrics:
 					ListenAddress string `yaml:"listen_address"`
 				}{
 					Disabled:      false,
-					ListenAddress: ":8090",
+					ListenAddress: "127.0.0.1:8090",
 				},
 			},
 		},
