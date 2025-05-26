@@ -43,18 +43,11 @@ jobs:
         run: |
           tar -czf yanm-linux-arm64.tar.gz yanm-linux-arm64
 
-      - name: Get tag name
-        id: tag
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
-            echo "TAG_NAME=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          else
-            echo "TAG_NAME=${{ inputs.version }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Upload Release Assets
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           files: '*.tar.gz'
+          tag_name: ${{ github.ref_name }}
+          prerelease: true
 
