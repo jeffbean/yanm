@@ -1,4 +1,4 @@
-name: Build and Publish ARM Binary
+name: Create Release
 
 on:
   push:
@@ -53,14 +53,8 @@ jobs:
           fi
 
       - name: Upload Release Assets
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: softprops/action-gh-release@v1
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
         with:
           files: '*.tar.gz'
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
 
-      - name: Upload Artifacts
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@v3
-        with:
-          path: '*.tar.gz'
