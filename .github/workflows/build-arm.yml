@@ -2,7 +2,7 @@ name: Build and Publish ARM Binary
 
 on:
   release:
-    types: [published]
+    types: [prereleased, published]
   workflow_dispatch:
 
 
