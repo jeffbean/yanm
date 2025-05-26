@@ -1,0 +1,54 @@
+name: Build and Publish ARM Binary
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Build ARM binary
+        run: |
+          GOARCH=arm64 GOOS=linux go build -o yanm-linux-arm64 .
+
+      - name: Create release tarball
+        run: |
+          tar -czf yanm-linux-arm64.tar.gz yanm-linux-arm64
+
+      - name: Get tag name
+        id: tag
+        run: echo "TAG_NAME=$(echo ${{ github.ref }} | sed -e 's,refs/tags/,v,')" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
+          release_name: Release ${{ steps.tag.outputs.TAG_NAME }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: yanm-linux-arm64.tar.gz
+          asset_name: yanm-linux-arm64.tar.gz
+          asset_content_type: application/gzip
