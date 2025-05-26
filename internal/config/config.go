@@ -44,7 +44,7 @@ type Configuration struct {
 
 	// Debug server configuration
 	DebugServer struct {
-		Enabled       bool   `yaml:"enabled"`
+		Disabled      bool   `yaml:"disabled"`
 		ListenAddress string `yaml:"listen_address"`
 	} `yaml:"debug_server"`
 }
@@ -100,12 +100,12 @@ func (c *Configuration) validate() error {
 
 	// Set default debug server configuration
 	if c.DebugServer.ListenAddress == "" {
-		c.DebugServer.ListenAddress = ":8090" // Default debug server address
+		c.DebugServer.ListenAddress = "127.0.0.1:8090" // Default debug server address
 	}
 
 	// Set default network ping_test configuration
 	if c.Network.PingTest.IntervalSeconds <= 0 {
-		c.Network.PingTest.IntervalSeconds = 15 // Default to 15 seconds
+		c.Network.PingTest.IntervalSeconds = 2 // Default to 2 seconds
 	}
 	if c.Network.PingTest.ThresholdSeconds <= 0 {
 		c.Network.PingTest.ThresholdSeconds = 5.0 // Default to 5.0 seconds
@@ -113,7 +113,7 @@ func (c *Configuration) validate() error {
 
 	// Set default network speedtest configuration
 	if c.Network.SpeedTest.IntervalMinutes <= 0 {
-		c.Network.SpeedTest.IntervalMinutes = 1
+		c.Network.SpeedTest.IntervalMinutes = 720
 	}
 
 	return nil
@@ -122,7 +122,7 @@ func (c *Configuration) validate() error {
 func (c *Configuration) validateMetrics() error {
 	// Set default metrics engine
 	if c.Metrics.Engine == "" {
-		c.Metrics.Engine = "no-op"
+		c.Metrics.Engine = "prometheus"
 	}
 
 	// Validate metrics engine

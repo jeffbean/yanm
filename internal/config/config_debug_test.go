@@ -69,10 +69,10 @@ func TestConfigPage_ServeHTTP(t *testing.T) {
 			Format: "text",
 		},
 		DebugServer: struct {
-			Enabled       bool   `yaml:"enabled"`
+			Disabled      bool   `yaml:"disabled"`
 			ListenAddress string `yaml:"listen_address"`
 		}{
-			Enabled:       true,
+			Disabled:      false,
 			ListenAddress: ":8081",
 		},
 	}

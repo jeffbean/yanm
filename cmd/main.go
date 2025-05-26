@@ -115,7 +115,7 @@ func run() error {
 		return err
 	}
 
-	if cfg.DebugServer.Enabled { // setupDebugServer can return nil if disabled
+	if !cfg.DebugServer.Disabled { // setupDebugServer can return nil if disabled
 		logger.Info("Starting debug server", "address", cfg.DebugServer.ListenAddress)
 		debugSrv.Start(ctx)
 		defer func() {

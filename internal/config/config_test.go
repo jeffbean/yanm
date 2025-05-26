@@ -127,10 +127,10 @@ func TestLoadFile_ContentAndValidation(t *testing.T) {
 					Format: "json",
 				},
 				DebugServer: struct {
-					Enabled       bool   `yaml:"enabled"`
+					Disabled      bool   `yaml:"disabled"`
 					ListenAddress string `yaml:"listen_address"`
 				}{
-					Enabled:       false,
+					Disabled:      false,
 					ListenAddress: ":8090",
 				},
 			},
@@ -191,10 +191,10 @@ metrics:
 					Format: "json",
 				},
 				DebugServer: struct {
-					Enabled       bool   `yaml:"enabled"`
+					Disabled      bool   `yaml:"disabled"`
 					ListenAddress string `yaml:"listen_address"`
 				}{
-					Enabled:       false,
+					Disabled:      false,
 					ListenAddress: ":8090",
 				},
 			},

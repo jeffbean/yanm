@@ -8,7 +8,6 @@
 
 # Dependency directories
 vendor/
-go.sum
 
 # Environment and IDE files
 .env
