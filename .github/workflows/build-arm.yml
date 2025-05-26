@@ -3,8 +3,6 @@ name: Build and Publish ARM Binary
 on:
   release:
     types: [prereleased, published]
-  workflow_dispatch:
-
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
