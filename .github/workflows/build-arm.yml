@@ -28,7 +28,7 @@ jobs:
 
       - name: Build ARM binary
         run: |
-          GOARCH=arm64 GOOS=linux go build -o yanm-linux-arm64 .
+          GOARCH=arm64 GOOS=linux go build -o yanm-linux-arm64 ./cmd/main.go
 
       - name: Create release tarball
         run: |
