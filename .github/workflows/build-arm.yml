@@ -1,4 +1,4 @@
-name: Create Release
+name: Build and Publish Binaries
 
 on:
   push:
@@ -11,14 +11,25 @@ on:
         required: true
         type: string
 
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  create-release:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux]
+        goarch: [amd64, arm64]
+        include:
+          - goos: linux
+            goarch: amd64
+            name: linux-amd64
+          - goos: linux
+            goarch: arm64
+            name: linux-arm64
+
     permissions:
       contents: write
 
@@ -35,19 +46,18 @@ jobs:
           go mod download
           go mod tidy 
 
-      - name: Build ARM binary
+      - name: Build binary
         run: |
-          GOARCH=arm64 GOOS=linux go build -o yanm-linux-arm64 ./cmd/main.go
+          GOARCH=${{ matrix.goarch }} GOOS=${{ matrix.goos }} go build -o yanm-${{ matrix.name }} ./cmd/main.go
 
       - name: Create release tarball
         run: |
-          tar -czf yanm-linux-arm64.tar.gz yanm-linux-arm64
+          tar -czf yanm-${{ matrix.name }}.tar.gz yanm-${{ matrix.name }}
 
       - name: Upload Release Assets
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: '*.tar.gz'
+          files: yanm-${{ matrix.name }}.tar.gz
           tag_name: ${{ github.ref_name }}
           prerelease: true
-
