@@ -1,9 +1,8 @@
 name: Build and Publish ARM Binary
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
 
 
@@ -38,29 +37,14 @@ jobs:
         run: |
           tar -czf yanm-linux-arm64.tar.gz yanm-linux-arm64
 
-      - name: Get tag name
-        id: tag
-        run: echo "TAG_NAME=$(echo ${{ github.ref }} | sed -e 's,refs/tags/,v,')" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release Assets
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
-          release_name: Release ${{ steps.tag.outputs.TAG_NAME }}
-          draft: true
-          prerelease: true
+          files: '*.tar.gz'
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Artifacts
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v3
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: yanm-linux-arm64.tar.gz
-          asset_name: yanm-linux-arm64.tar.gz
-          asset_content_type: application/gzip
-
-    
+          path: '*.tar.gz'
