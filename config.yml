@@ -14,5 +14,5 @@ logging:
   output_file: /var/log/yanm/yanm.log
 
 debug_server:
-  enabled: true
-  listen_address: 127.0.0.1:8090
+  disabled: false
+  listen_address: :8090

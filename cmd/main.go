@@ -20,18 +20,21 @@ import (
 	"yanm/internal/storage"
 )
 
-var configFile = flag.String("config", "config.yml", "Path to the configuration file")
+var (
+	configFile string
+)
 
 func main() {
+	flag.StringVar(&configFile, "config", "config.yml", "Path to the configuration file")
+	flag.Parse()
+
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func run() error {
-	flag.Parse()
-
-	cfg, err := config.LoadFile(*configFile)
+	cfg, err := config.LoadFile(configFile)
 	if err != nil {
 		return err
 	}
@@ -41,7 +44,7 @@ func run() error {
 		return err
 	}
 
-	logger.Info("Yet Another Network Monitor (YANM) starting up...", "configFile", *configFile)
+	logger.Info("Yet Another Network Monitor (YANM) starting up...", "configFile", configFile)
 	logger.Info("Loaded configuration", "settings", cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())

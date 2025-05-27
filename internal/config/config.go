@@ -50,6 +50,10 @@ type Configuration struct {
 }
 
 func LoadFile(configPath string) (*Configuration, error) {
+	if configPath == "" {
+		return Load(bytes.NewReader(nil))
+	}
+
 	absConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve config path: %v", err)
