@@ -24,6 +24,15 @@ type PrometheusStorage struct {
 // Verify PrometheusStorage implements MetricsStorage interface
 var _ MetricsStorage = (*PrometheusStorage)(nil)
 
+// want whole numbers, but not linerar.
+var _pingBuckets = []float64{
+	2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	20, 25, 30, 35, 40,
+	50, 75, 100,
+	200, 300, 500, 750, 1000,
+	2500, 5000, 10000,
+}
+
 // NewPrometheusStorage creates a new Prometheus storage client
 func NewPrometheusStorage(logger *slog.Logger) (*PrometheusStorage, error) {
 	// Create metrics using promauto
@@ -45,7 +54,7 @@ func NewPrometheusStorage(logger *slog.Logger) (*PrometheusStorage, error) {
 		Name:      "network_latency_ms",
 		Help:      "Network ping latency in milliseconds",
 		Subsystem: "ping",
-		Buckets:   prometheus.ExponentialBucketsRange(1, 4096, 32), // up to 4 seconds, 32 buckets
+		Buckets:   _pingBuckets,
 	}, []string{"server"})
 
 	return &PrometheusStorage{
