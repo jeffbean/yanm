@@ -30,9 +30,7 @@ jobs:
     steps:
       - name: Install cosign
         if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@v3.5
-        with:
-          cosign-release: 'v2.2.4'
+        uses: sigstore/cosign-installer@v3.8.1
 
       - name: Checkout repository
         uses: actions/checkout@v4
