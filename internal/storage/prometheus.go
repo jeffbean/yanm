@@ -45,7 +45,7 @@ func NewPrometheusStorage(logger *slog.Logger) (*PrometheusStorage, error) {
 		Name:      "network_latency_ms",
 		Help:      "Network ping latency in milliseconds",
 		Subsystem: "ping",
-		Buckets:   prometheus.ExponentialBucketsRange(2, 4000, 30), // up to 4 seconds
+		Buckets:   prometheus.ExponentialBucketsRange(1, 4096, 32), // up to 4 seconds, 32 buckets
 	}, []string{"server"})
 
 	return &PrometheusStorage{
