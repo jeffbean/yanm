@@ -146,7 +146,7 @@ func (m *Network) run(ctx context.Context) {
 					continue
 				}
 
-				m.logger.InfoContext(ctx, "Performing ping check...")
+				m.logger.DebugContext(ctx, "Performing ping check...")
 				pingResult, err := m.performPingCheck(ctx)
 				if err != nil {
 					// TODO: trigger network check for some ping error conditions.
@@ -171,14 +171,14 @@ func (m *Network) run(ctx context.Context) {
 				m.logger.InfoContext(ctx, "Network check goroutine stopping...")
 				return
 			case <-m.triggerNetworkCheck:
-				m.logger.InfoContext(ctx, "TRIGGER: Performing network check due to high ping latency...")
+				m.logger.DebugContext(ctx, "TRIGGER: Performing network check due to high ping latency...")
 				if !m.networkLimiter.Allow() { // Respect the limiter even for triggered checks
 					m.logger.InfoContext(ctx, "Network check rate limit active, triggered check skipped.", "tokens", m.networkLimiter.Tokens())
 					continue
 				}
 				m.performNetworkCheck(ctx)
 			case <-m.networkTicker.C:
-				m.logger.InfoContext(ctx, "SCHEDULED: Performing network check...")
+				m.logger.DebugContext(ctx, "SCHEDULED: Performing network check...")
 				if !m.networkLimiter.Allow() {
 					m.logger.InfoContext(ctx, "Network check rate limit active, scheduled check skipped.", "tokens", m.networkLimiter.Tokens())
 					continue

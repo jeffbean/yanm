@@ -57,7 +57,7 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*Performance, e
 	}
 
 	target := targets[0]
-	s.logger.InfoContext(ctx, "Selected server", "serverName", target.Name)
+	s.logger.DebugContext(ctx, "Selected server", "serverName", target.Name)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -100,7 +100,7 @@ func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, err
 	}
 
 	target := targets[0]
-	s.logger.InfoContext(ctx, "Selected server", "serverName", target.Name)
+	s.logger.DebugContext(ctx, "Selected server", "serverName", target.Name)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

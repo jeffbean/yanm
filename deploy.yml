@@ -5,17 +5,25 @@
   connection: local
   become: true
   vars:
-    yanm_repo: "https://github.com/{{ lookup('env', 'GITHUB_USER') }}/yanm.git"
-    yanm_dir: "/opt/yanm"
-    yanm_service_name: "yanm"
     yanm_user: "yanm"
     yanm_group: "yanm"
-    yanm_config_dir: "/etc/yanm"
-    yanm_log_dir: "/var/log/yanm"
 
   tasks:
-    # Create necessary directories
-    - name: Create yanm user and group
+    # Start Docker service
+    - name: Start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Create yanm group
+    - name: Create yanm group
+      group:
+        name: "{{ yanm_group }}"
+        system: yes
+
+    # Create yanm user
+    - name: Create yanm user
       user:
         name: "{{ yanm_user }}"
         group: "{{ yanm_group }}"
@@ -23,92 +31,32 @@
         createhome: no
         shell: /usr/sbin/nologin
 
-    - name: Create configuration directory
-      file:
-        path: "{{ yanm_config_dir }}"
-        state: directory
-        owner: "{{ yanm_user }}"
-        group: "{{ yanm_group }}"
-        mode: '0755'
+    # Pull Docker image
+    - name: Pull Docker image
+      docker_image:
+        name: ghcr.io/jeffbean/yanm:main
+        source: pull
+        pull: yes
 
-    - name: Create log directory
-      file:
-        path: "{{ yanm_log_dir }}"
-        state: directory
-        owner: "{{ yanm_user }}"
-        group: "{{ yanm_group }}"
-        mode: '0755'
-
-    # Git clone/update
-    - name: Clone/Update YANM repository
-      git:
-        repo: "{{ yanm_repo }}"
-        dest: "{{ yanm_dir }}"
-        update: yes
-        force: yes
-
-    # Build the application
-    - name: Install Go dependencies
-      command: go mod download
-      args:
-        chdir: "{{ yanm_dir }}"
-
-    - name: Build YANM
-      command: go build -o yanm .
-      args:
-        chdir: "{{ yanm_dir }}"
-
-    # Set up systemd service
-    - name: Create yanm.service
-      copy:
-        content: |
-          [Unit]
-          Description=Yet Another Network Monitor
-          After=network.target
-
-          [Service]
-          Type=simple
-          User={{ yanm_user }}
-          Group={{ yanm_group }}
-          WorkingDirectory={{ yanm_dir }}
-          ExecStart={{ yanm_dir }}/yanm -config {{ yanm_config_dir }}/config.yml
-          Restart=on-failure
-          RestartSec=5s
-          StandardOutput={{ yanm_log_dir }}/yanm-out.log
-          StandardError={{ yanm_log_dir }}/yanm-err.log
-
-          [Install]
-          WantedBy=multi-user.target
-        dest: /etc/systemd/system/yanm.service
-        owner: root
-        group: root
-        mode: '0644'
-
-    # Reload systemd and restart service
-    - name: Reload systemd
-      systemd:
-        daemon_reload: yes
-
-    - name: Stop yanm service
-      systemd:
+    # Create container
+    - name: Create Docker container
+      docker_container:
         name: yanm
-        state: stopped
+        image: ghcr.io/jeffbean/yanm:main
+        state: started
+        recreate: yes
+        restart_policy: unless-stopped
+        ports:
+          - "8090:8090"
+        user: "{{ yanm_user }}"
 
-    - name: Start yanm service
-      systemd:
+    # Verify Docker container is running
+    - name: Check yanm container status
+      docker_container:
         name: yanm
         state: started
-        enabled: yes
+      register: container_status
 
-    # Verify service is running
-    - name: Check yanm service status
-      systemd:
-        name: yanm
-        state: started
-        enabled: yes
-        daemon_reload: yes
-      register: service_status
-
-    - name: Show service status
+    - name: Show container status
       debug:
-        var: service_status
+        msg: "Container status: {{ container_status.status }}"

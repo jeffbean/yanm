@@ -1,0 +1,64 @@
+# Playbook for setting up Alloy agent environment
+- name: Setup Alloy agent environment
+  hosts: all
+  become: true
+  vars:
+    alloy_user: "alloy"
+
+  tasks:
+    # Add alloy user to docker group
+    - name: Add alloy user to docker group
+      user:
+        name: "{{ alloy_user }}"
+        groups: docker
+        append: yes
+        state: present
+
+    # Ensure docker group exists
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
+    # Create alloy user if it doesn't exist
+    - name: Create alloy user if it doesn't exist
+      user:
+        name: "{{ alloy_user }}"
+        state: present
+        shell: /bin/bash
+        createhome: yes
+        system: no
+
+    # Set up docker socket permissions
+    - name: Set up docker socket permissions
+      file:
+        path: /var/run/docker.sock
+        owner: root
+        group: docker
+        mode: '0660'
+        state: socket
+      notify:
+        - restart docker
+
+    - name: Update Alloy service User setting
+      lineinfile:
+        path: /etc/systemd/system/alloy.service
+        regexp: "^User="
+        line: "User=root"
+        state: present
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart Alloy service
+      systemd:
+        name: alloy
+        state: restarted
+        enabled: yes
+
+  handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
