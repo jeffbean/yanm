@@ -1,5 +1,9 @@
 # Stage 1: Build the application
-FROM golang:1-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+
+ARG TARGETPLATFORM
+
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 WORKDIR /app
 
@@ -12,7 +16,7 @@ COPY . .
 
 # Build the application
 # Adjust the output path and main package path if necessary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/yanm_app ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETPLATFORM} go build -a -installsuffix cgo -o /app/yanm_app ./cmd/main.go
 
 # Stage 2: Create the runtime image
 FROM alpine:latest
