@@ -1,17 +1,17 @@
 package debughttp
 
 import (
-	"bytes" // Added for buffer
+	"bytes" 
 	"context"
 	"embed"
-	"errors" // For ErrPathAlreadyRegistered
+	"errors" 
 	"fmt"
-	htmltemplate "html/template" // Aliased for clarity
+	htmltemplate "html/template" 
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync" // Aliased for clarity
+	"sync" 
 	"yanm/internal/debughttp/debughandler"
 )
 
