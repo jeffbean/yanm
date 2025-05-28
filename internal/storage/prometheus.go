@@ -41,21 +41,21 @@ func NewPrometheusStorage(logger *slog.Logger) (*PrometheusStorage, error) {
 		Help:      "Network download speed in Mbps",
 		Subsystem: "speedtest",
 		Buckets:   prometheus.LinearBuckets(0, 25, 20), // up to 500mbps
-	}, []string{"server", "lat", "lon"})
+	}, []string{"server", "latitude", "longitude"})
 
 	uploadSpeed := promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "network_upload_speed_mbps",
 		Help:      "Network upload speed in Mbps",
 		Subsystem: "speedtest",
 		Buckets:   prometheus.LinearBuckets(0, 25, 20), // up to 500mbps
-	}, []string{"server", "lat", "lon"})
+	}, []string{"server", "latitude", "longitude"})
 
 	pingLatency := promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "network_latency_ms",
 		Help:      "Network ping latency in milliseconds",
 		Subsystem: "ping",
 		Buckets:   _pingBuckets,
-	}, []string{"server", "lat", "lon"})
+	}, []string{"server", "latitude", "longitude"})
 
 	return &PrometheusStorage{
 		handler:       promhttp.Handler(),
@@ -73,12 +73,12 @@ func (p *PrometheusStorage) StoreNetworkPerformance(
 	downloadSpeedMbps, uploadSpeedMbps float64,
 	pingMs int64,
 	serverName string,
-	lat, lon string,
+	latitude, longitude string,
 ) error {
 	// Set metric values
-	p.downloadSpeed.WithLabelValues(serverName, lat, lon).Observe(downloadSpeedMbps)
-	p.uploadSpeed.WithLabelValues(serverName, lat, lon).Observe(uploadSpeedMbps)
-	p.pingLatency.WithLabelValues(serverName, lat, lon).Observe(float64(pingMs))
+	p.downloadSpeed.WithLabelValues(serverName, latitude, longitude).Observe(downloadSpeedMbps)
+	p.uploadSpeed.WithLabelValues(serverName, latitude, longitude).Observe(uploadSpeedMbps)
+	p.pingLatency.WithLabelValues(serverName, latitude, longitude).Observe(float64(pingMs))
 	return nil
 }
 
@@ -87,10 +87,10 @@ func (p *PrometheusStorage) StorePingResult(
 	_ time.Time,
 	pingMs int64,
 	serverName string,
-	lat, lon string,
+	latitude, longitude string,
 ) error {
 	// Set metric values with server label
-	p.pingLatency.WithLabelValues(serverName, lat, lon).Observe(float64(pingMs))
+	p.pingLatency.WithLabelValues(serverName, latitude, longitude).Observe(float64(pingMs))
 	return nil
 }
 func (p *PrometheusStorage) MetricsHTTPHandler() http.Handler {
