@@ -209,6 +209,8 @@ func (m *Network) performPingCheck(ctx context.Context) (*network.PingResult, er
 		m.clock.Now(),
 		pingResult.Latency.Milliseconds(),
 		pingResult.TargetName,
+		pingResult.Geo.Lat,
+		pingResult.Geo.Lon,
 	)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "Failed to store ping result", "error", err)
@@ -232,6 +234,8 @@ func (m *Network) performNetworkCheck(ctx context.Context) {
 		speedResult.UploadSpeedMbps,
 		speedResult.PingLatency.Milliseconds(),
 		speedResult.TargetName,
+		speedResult.Geo.Lat,
+		speedResult.Geo.Lon,
 	)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "Failed to store speed result", "error", err)

@@ -12,6 +12,8 @@ import (
 	"go.uber.org/multierr"
 )
 
+const _pingTimeout = time.Second * 10
+
 // SpeedTestClient implements the SpeedTester interface
 type SpeedTestClient struct {
 	st *speedtest.Speedtest
@@ -19,7 +21,7 @@ type SpeedTestClient struct {
 	logger *slog.Logger
 
 	mu                 sync.RWMutex
-	lastNetworkResults []*Performance
+	lastNetworkResults []*PerformanceResult
 	lastPingResults    []*PingResult
 
 	// testing fields
@@ -41,7 +43,7 @@ func NewSpeedTestClient(logger *slog.Logger) *SpeedTestClient {
 }
 
 // PerformSpeedTest conducts a network speed test
-func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*Performance, error) {
+func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*PerformanceResult, error) {
 	serverList, err := s.st.FetchServerListContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch server list: %v", err)
@@ -66,15 +68,16 @@ func (s *SpeedTestClient) PerformSpeedTest(ctx context.Context) (*Performance, e
 		return nil, fmt.Errorf("failed to perform tests: %v", err)
 	}
 
-	performance := &Performance{
+	performance := &PerformanceResult{
 		TargetName:        target.Name,
 		Timestamp:         s.clock.Now(),
 		DownloadSpeedMbps: float64(target.DLSpeed.Mbps()),
 		UploadSpeedMbps:   float64(target.ULSpeed.Mbps()),
 		PingLatency:       target.Latency,
+		Geo:               Geo{Lat: target.Lat, Lon: target.Lon},
 	}
 
-	s.lastNetworkResults = append([]*Performance{performance}, s.lastNetworkResults...)
+	s.lastNetworkResults = append([]*PerformanceResult{performance}, s.lastNetworkResults...)
 	if len(s.lastNetworkResults) > maxHistory {
 		s.lastNetworkResults = s.lastNetworkResults[:maxHistory]
 	}
@@ -109,6 +112,7 @@ func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, err
 		result.Latency = latency
 		result.Timestamp = s.clock.Now()
 		result.TargetName = target.Name
+		result.Geo = Geo{Lat: target.Lat, Lon: target.Lon}
 	}
 
 	s.lastPingResults = append([]*PingResult{result}, s.lastPingResults...)
@@ -116,7 +120,9 @@ func (s *SpeedTestClient) PerformPingTest(ctx context.Context) (*PingResult, err
 		s.lastPingResults = s.lastPingResults[:maxHistory]
 	}
 
-	if err := target.PingTestContext(ctx, _callback); err != nil {
+	pingCtx, cancel := context.WithTimeout(ctx, _pingTimeout)
+	defer cancel()
+	if err := target.PingTestContext(pingCtx, _callback); err != nil {
 		return nil, err
 	}
 

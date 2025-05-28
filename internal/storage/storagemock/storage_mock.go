@@ -63,29 +63,29 @@ func (mr *MockMetricsStorageMockRecorder) MetricsHTTPHandler() *gomock.Call {
 }
 
 // StoreNetworkPerformance mocks base method.
-func (m *MockMetricsStorage) StoreNetworkPerformance(ctx context.Context, timestamp time.Time, downloadSpeedMbps, uploadSpeedMbps float64, pingMs int64, serverName string) error {
+func (m *MockMetricsStorage) StoreNetworkPerformance(ctx context.Context, timestamp time.Time, downloadSpeedMbps, uploadSpeedMbps float64, pingMs int64, serverName, lat, lon string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreNetworkPerformance", ctx, timestamp, downloadSpeedMbps, uploadSpeedMbps, pingMs, serverName)
+	ret := m.ctrl.Call(m, "StoreNetworkPerformance", ctx, timestamp, downloadSpeedMbps, uploadSpeedMbps, pingMs, serverName, lat, lon)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreNetworkPerformance indicates an expected call of StoreNetworkPerformance.
-func (mr *MockMetricsStorageMockRecorder) StoreNetworkPerformance(ctx, timestamp, downloadSpeedMbps, uploadSpeedMbps, pingMs, serverName interface{}) *gomock.Call {
+func (mr *MockMetricsStorageMockRecorder) StoreNetworkPerformance(ctx, timestamp, downloadSpeedMbps, uploadSpeedMbps, pingMs, serverName, lat, lon interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreNetworkPerformance", reflect.TypeOf((*MockMetricsStorage)(nil).StoreNetworkPerformance), ctx, timestamp, downloadSpeedMbps, uploadSpeedMbps, pingMs, serverName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreNetworkPerformance", reflect.TypeOf((*MockMetricsStorage)(nil).StoreNetworkPerformance), ctx, timestamp, downloadSpeedMbps, uploadSpeedMbps, pingMs, serverName, lat, lon)
 }
 
 // StorePingResult mocks base method.
-func (m *MockMetricsStorage) StorePingResult(ctx context.Context, timestamp time.Time, pingMs int64, serverName string) error {
+func (m *MockMetricsStorage) StorePingResult(ctx context.Context, timestamp time.Time, pingMs int64, serverName, lat, lon string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StorePingResult", ctx, timestamp, pingMs, serverName)
+	ret := m.ctrl.Call(m, "StorePingResult", ctx, timestamp, pingMs, serverName, lat, lon)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StorePingResult indicates an expected call of StorePingResult.
-func (mr *MockMetricsStorageMockRecorder) StorePingResult(ctx, timestamp, pingMs, serverName interface{}) *gomock.Call {
+func (mr *MockMetricsStorageMockRecorder) StorePingResult(ctx, timestamp, pingMs, serverName, lat, lon interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePingResult", reflect.TypeOf((*MockMetricsStorage)(nil).StorePingResult), ctx, timestamp, pingMs, serverName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePingResult", reflect.TypeOf((*MockMetricsStorage)(nil).StorePingResult), ctx, timestamp, pingMs, serverName, lat, lon)
 }

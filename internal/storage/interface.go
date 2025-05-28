@@ -17,6 +17,7 @@ type MetricsStorage interface {
 		downloadSpeedMbps, uploadSpeedMbps float64,
 		pingMs int64,
 		serverName string,
+		lat, lon string,
 	) error
 
 	// StorePingResult stores the ping result.
@@ -25,6 +26,7 @@ type MetricsStorage interface {
 		timestamp time.Time,
 		pingMs int64,
 		serverName string,
+		lat, lon string,
 	) error
 
 	// Close terminates the storage connection and performs any final operations

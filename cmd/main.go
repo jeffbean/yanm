@@ -54,14 +54,6 @@ func run() error {
 	switch cfg.Metrics.Engine {
 	case "prometheus":
 		dataStorage, err = storage.NewPrometheusStorage(logger)
-	case "influxdb":
-		dataStorage, err = storage.NewInfluxDBStorage(
-			logger,
-			cfg.Metrics.InfluxDB.URL,
-			cfg.Metrics.InfluxDB.Token,
-			cfg.Metrics.InfluxDB.Org,
-			cfg.Metrics.InfluxDB.Bucket,
-		)
 	case "no-op":
 		fallthrough
 	default:

@@ -30,12 +30,15 @@ func (n *NoOpStorage) StoreNetworkPerformance(
 	downloadSpeedMbps, uploadSpeedMbps float64,
 	ping int64,
 	serverName string,
+	lat, lon string,
 ) error {
 	n.logger.InfoContext(ctx, "NoOpStorage: logging metrics",
 		"downloadSpeedMbps", downloadSpeedMbps,
 		"uploadSpeedMbps", uploadSpeedMbps,
 		"ping", ping,
-		"serverName", serverName)
+		"serverName", serverName,
+		"lat", lat,
+		"lon", lon)
 	return nil
 }
 
@@ -45,10 +48,13 @@ func (n *NoOpStorage) StorePingResult(
 	_ time.Time,
 	pingMs int64,
 	serverName string,
+	lat, lon string,
 ) error {
 	n.logger.InfoContext(ctx, "NoOpStorage: logging ping result",
 		"pingMs", pingMs,
-		"serverName", serverName)
+		"serverName", serverName,
+		"lat", lat,
+		"lon", lon)
 	return nil
 }
 
