@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	_burstPing    = 1
-	_burstNetwork = 3
+	_burstPing    = 2
+	_burstNetwork = 1
 )
 
 // trackingLimiter is a rate limiter that tracks the limit and the current rate.
@@ -141,7 +141,7 @@ func (m *Network) run(ctx context.Context) {
 			case <-ctx.Done():
 				m.logger.InfoContext(ctx, "Ping check goroutine stopping...")
 				return
-			case <-time.Tick(time.Second):
+			case <-time.Tick(time.Millisecond * 500):
 				if !m.pingLimiter.Allow() {
 					continue
 				}
