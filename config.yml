@@ -1,6 +1,7 @@
 network:
+  ping_test:
+    interval_seconds: 1
   speedtest:
-    # Run every 12 hours
     interval_minutes: 720
     servers:
       max_ping_timeout: 500ms
