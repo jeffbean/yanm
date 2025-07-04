@@ -2,7 +2,7 @@
 
 A comprehensive Golang-based system for monitoring home network internet health and performance, designed to run on a Raspberry Pi.
 
-![image](https://github.com/user-attachments/assets/860b88b7-a31d-413a-af85-91f60786ce57)
+<img width="1144" alt="image" src="https://github.com/user-attachments/assets/7fa1472a-fe6a-43fd-9f69-9bf0c4739ee4" />
 
 ## Features
 - 🚀 Periodic Internet Speed Testing
